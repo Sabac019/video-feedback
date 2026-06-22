@@ -318,8 +318,9 @@ with tab_vid:
             duration = VideoFeedbackUtils.get_video_duration(vid_info['path'])
             # 디스크 경로를 직접 넘겨 스트리밍 렌더링 (사운드 및 로딩 성능 최적화)
             v_start_time = min(st.session_state.get(f"v_start_{v_id}", 0), duration)
-            # key를 동적으로 설정하여 재생시점 이동 버튼 클릭 시 비디오를 완전히 리로드/이동시킵니다.
-            st.video(vid_info['path'], start_time=v_start_time, key=f"video_player_{v_id}_{v_start_time}")
+            # key를 동적으로 설정한 container를 씌워 재생시점 이동 버튼 클릭 시 비디오를 강제 리로드/이동시킵니다.
+            with st.container(key=f"video_container_{v_id}_{v_start_time}"):
+                st.video(vid_info['path'], start_time=v_start_time)
             
             st.markdown("#### 🛠️ 타임라인 핀 지정 도구")
             
