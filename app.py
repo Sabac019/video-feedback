@@ -328,38 +328,56 @@ with tab_vid:
             
             # Safe check and conversion of slider session state
             slider_key = f"v_slider_{v_id}"
+            start_slider_key = f"v_slider_start_{v_id}"
+            end_slider_key = f"v_slider_end_{v_id}"
             fmt = "mm:ss" if duration < 3600 else "HH:mm:ss"
             
             if is_range:
-                # Range selection mode
-                default_range = (seconds_to_time(v_start_time), seconds_to_time(min(v_start_time + 10, duration)))
-                current_slider_val = st.session_state.get(slider_key, default_range)
-                if not isinstance(current_slider_val, tuple) or len(current_slider_val) != 2:
-                    current_slider_val = default_range
-                    st.session_state[slider_key] = current_slider_val
+                # 시작 시점 선택 슬라이더
+                start_val = st.session_state.get(start_slider_key, seconds_to_time(v_start_time))
+                if isinstance(start_val, (int, float)):
+                    start_val = seconds_to_time(start_val)
+                st.session_state[start_slider_key] = start_val
                 
-                # Ensure the bounds are correct datetime.time types
-                start_t, end_t = current_slider_val
-                if isinstance(start_t, (int, float)):
-                    start_t = seconds_to_time(start_t)
-                if isinstance(end_t, (int, float)):
-                    end_t = seconds_to_time(end_t)
-                current_slider_val = (start_t, end_t)
-                st.session_state[slider_key] = current_slider_val
+                # 종료 시점 선택 슬라이더
+                default_end = seconds_to_time(min(time_to_seconds(start_val) + 10, duration))
+                end_val = st.session_state.get(end_slider_key, default_end)
+                if isinstance(end_val, (int, float)):
+                    end_val = seconds_to_time(end_val)
+                st.session_state[end_slider_key] = end_val
                 
-                target_time_tuple = st.slider(
-                    "타임라인 슬라이더",
-                    min_value=seconds_to_time(0),
-                    max_value=seconds_to_time(duration),
-                    value=current_slider_val,
-                    key=slider_key,
-                    step=datetime.timedelta(seconds=1),
-                    format=fmt,
-                    label_visibility="collapsed"
-                )
-                start_seconds = time_to_seconds(target_time_tuple[0])
-                end_seconds = time_to_seconds(target_time_tuple[1])
-                target_seconds = start_seconds  # Draw pins and preview at the start point
+                col_start, col_end = st.columns(2)
+                with col_start:
+                    st.markdown("**⏳ 시작 시점 (Start Time)**")
+                    target_start_time = st.slider(
+                        "시작 시점 슬라이더",
+                        min_value=seconds_to_time(0),
+                        max_value=seconds_to_time(duration),
+                        value=start_val,
+                        key=start_slider_key,
+                        step=datetime.timedelta(seconds=1),
+                        format=fmt,
+                        label_visibility="collapsed"
+                    )
+                with col_end:
+                    st.markdown("**⏳ 종료 시점 (End Time)**")
+                    target_end_time = st.slider(
+                        "종료 시점 슬라이더",
+                        min_value=seconds_to_time(0),
+                        max_value=seconds_to_time(duration),
+                        value=end_val,
+                        key=end_slider_key,
+                        step=datetime.timedelta(seconds=1),
+                        format=fmt,
+                        label_visibility="collapsed"
+                    )
+                
+                start_seconds = time_to_seconds(target_start_time)
+                end_seconds = time_to_seconds(target_end_time)
+                if start_seconds > end_seconds:
+                    start_seconds, end_seconds = end_seconds, start_seconds
+                
+                target_seconds = start_seconds
             else:
                 # Single point selection mode
                 current_slider_val = st.session_state.get(slider_key, seconds_to_time(v_start_time))
