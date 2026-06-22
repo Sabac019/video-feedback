@@ -229,6 +229,16 @@ class VideoFeedbackUtils:
             st.markdown(f'<div style="background-color: #F0F4FF; border-left: 4px solid {color}; padding: 8px; border-radius: 4px; margin-bottom: 4px;"><span style="font-size: 0.8rem; color: #555;">⏱️ <b>{timestamp}</b> ({x}, {y})</span><br><span style="font-size: 1.0rem; color: #000;">{text}</span></div>', unsafe_allow_html=True)
             if st.button(f"▶ {timestamp} 재생 시점으로 이동", key=f"v_jump_{c_id}", use_container_width=True):
                 st.session_state[f"v_start_{file_id}"] = time
+                
+                # Update slider state to keep the minutes/seconds slider in sync
+                import datetime
+                secs = int(time)
+                hours = secs // 3600
+                minutes = (secs % 3600) // 60
+                seconds = secs % 60
+                hours = min(hours, 23)
+                t_obj = datetime.time(hours, minutes, seconds)
+                st.session_state[f"v_slider_{file_id}"] = t_obj
                 st.rerun()
         with col_ed:
             if st.button("✎", key=f"btn_ed_vid_{c_id}", help="수정"):

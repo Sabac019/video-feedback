@@ -2,6 +2,7 @@ import streamlit as st
 from PIL import Image
 import io
 import os
+import datetime
 from streamlit_autorefresh import st_autorefresh
 from feedbackutill import FeedbackConfig, ImageFeedbackUtils, VideoFeedbackUtils, SessionStateManager, ProjectManager
 
@@ -10,6 +11,22 @@ def resize_image(img: Image.Image, max_width: int) -> Image.Image:
         ratio = max_width / float(img.width)
         return img.resize((max_width, int(img.height * ratio)), Image.Resampling.BILINEAR)
     return img
+
+@st.cache_data(show_spinner=False)
+def load_and_resize_image(img_path: str, max_width: int = 700) -> Image.Image:
+    base_img = Image.open(img_path).convert("RGB")
+    return resize_image(base_img, max_width)
+
+def seconds_to_time(secs: int) -> datetime.time:
+    secs = int(secs)
+    hours = secs // 3600
+    minutes = (secs % 3600) // 60
+    seconds = secs % 60
+    hours = min(hours, 23)
+    return datetime.time(hours, minutes, seconds)
+
+def time_to_seconds(t: datetime.time) -> int:
+    return t.hour * 3600 + t.minute * 60 + t.second
 
 st.set_page_config(page_title="멀티미디어 디자인 리뷰 룸 (협업/공유 버전)", layout="wide")
 
@@ -24,6 +41,11 @@ with st.sidebar:
             if new_proj_name.strip():
                 new_pid = ProjectManager.create_project(new_proj_name.strip())
                 st.query_params["project"] = new_pid
+                # Clear uploaders when starting new project
+                if "img_uploader_key" in st.session_state:
+                    st.session_state.img_uploader_key += 1
+                if "vid_uploader_key" in st.session_state:
+                    st.session_state.vid_uploader_key += 1
                 st.rerun()
             else:
                 st.warning("이름을 입력하세요.")
@@ -39,6 +61,11 @@ with st.sidebar:
             with st.expander(f"{p['name']} ({p['created_at'][:10]})", expanded=(p['id'] == st.query_params.get("project"))):
                 if st.button("📂 이 프로젝트 열기", key=f"open_{p['id']}", use_container_width=True):
                     st.query_params["project"] = p['id']
+                    # Clear uploaders when opening project
+                    if "img_uploader_key" in st.session_state:
+                        st.session_state.img_uploader_key += 1
+                    if "vid_uploader_key" in st.session_state:
+                        st.session_state.vid_uploader_key += 1
                     st.rerun()
                 
                 new_name = st.text_input("이름 변경", value=p['name'], key=f"ren_in_{p['id']}")
@@ -56,6 +83,23 @@ with st.sidebar:
                         st.rerun()
 
 current_pid = st.query_params.get("project")
+
+if current_pid:
+    if "last_pid" not in st.session_state:
+        st.session_state.last_pid = current_pid
+    elif st.session_state.last_pid != current_pid:
+        st.session_state.last_pid = current_pid
+        # Project changed! Increment uploader keys to reset file uploaders and clear memory
+        for suffix in ["img", "vid"]:
+            key_name = f"{suffix}_uploader_key"
+            old_val = st.session_state.get(key_name, 0)
+            old_key = f"{suffix}_uploader_{old_val}"
+            if old_key in st.session_state:
+                del st.session_state[old_key]
+            st.session_state[key_name] = old_val + 1
+        # Clear coordinates
+        st.session_state.current_click = {}
+        st.session_state.v_current_click = {}
 
 if not current_pid:
     st.title("🎬 프리미엄 디자인 리뷰 룸")
@@ -106,14 +150,23 @@ with tab_img:
     
     # 1. 이미 업로드되어 저장된 이미지 렌더링
     saved_images = state.get("files", {}).get("images", [])
-    for img_info in saved_images:
+    for img_info in reversed(saved_images):
         f_id = f"img_{img_info['name']}"
         SessionStateManager.init_image_state(f_id)
         
         st.write("---")
         # 업로드 일시 표시 (상단 아주 작게 회색 글씨, 24시간 형식)
-        if "uploaded_at" in img_info:
-            st.markdown(f"<span style='color: gray; font-size: 0.75rem;'>🕒 업로드 일시: {img_info['uploaded_at']}</span>", unsafe_allow_html=True)
+        uploaded_at = img_info.get("uploaded_at")
+        if not uploaded_at and os.path.exists(img_info['path']):
+            try:
+                mtime = os.path.getmtime(img_info['path'])
+                dt = datetime.datetime.fromtimestamp(mtime)
+                uploaded_at = f"{dt.year}년 {dt.month:02d}월 {dt.day:02d}일 {dt.hour:02d}시 {dt.minute:02d}분"
+            except Exception:
+                pass
+                
+        if uploaded_at:
+            st.markdown(f"<div style='color: #888888; font-size: 11px; margin-bottom: -10px;'>🕒 업로드 일시: {uploaded_at}</div>", unsafe_allow_html=True)
             
         col_title, col_delete = st.columns([8, 2])
         with col_title:
@@ -136,11 +189,17 @@ with tab_img:
         with col_img:
             sel_color = st.radio("핀 색상", list(FeedbackConfig.COLOR_MAP.keys()), key=f"r_{f_id}", horizontal=True)
             
-            # 디스크에서 원본 이미지 불러오기 및 리사이징
-            base_img = Image.open(img_info['path']).convert("RGB")
-            base_img = resize_image(base_img, max_width=700)
-            
+            # Sync coordinate from widget state before rendering to optimize latency (no double rerun)
+            coords_key = f"coords_{f_id}"
+            coords = st.session_state.get(coords_key)
+            if coords and coords != st.session_state.current_click.get(f_id):
+                st.session_state.current_click[f_id] = coords
+                
             active_click = st.session_state.current_click.get(f_id)
+            
+            # 디스크에서 원본 이미지 불러오기 및 리사이징 (캐시 활용 최적화)
+            base_img = load_and_resize_image(img_info['path'], max_width=700)
+            
             img_with_pins = ImageFeedbackUtils.draw_pins(
                 base_img=base_img,
                 comments=st.session_state.canvas_data.get(f_id, []),
@@ -149,11 +208,7 @@ with tab_img:
             )
             
             from streamlit_image_coordinates import streamlit_image_coordinates
-            coords = streamlit_image_coordinates(img_with_pins, use_column_width="always", key=f"coords_{f_id}")
-            
-            if coords and coords != active_click:
-                st.session_state.current_click[f_id] = coords
-                st.rerun()
+            streamlit_image_coordinates(img_with_pins, use_column_width="always", key=coords_key)
 
         with col_chat:
             st.write("💬 **이미지 피드백 챗**")
@@ -165,6 +220,9 @@ with tab_img:
                     SessionStateManager.add_image_feedback(f_id, FeedbackConfig.COLOR_MAP[sel_color], sel_color, active_click["x"], active_click["y"], f_back)
                     state["canvas_data"] = st.session_state.canvas_data
                     ProjectManager.save_state(current_pid, state)
+                    # Clear coordinates from session state
+                    if coords_key in st.session_state:
+                        st.session_state[coords_key] = None
                     st.rerun()
                 else:
                     st.warning("이미지 위를 먼저 클릭하세요!")
@@ -186,7 +244,7 @@ with tab_img:
                     use_container_width=True,
                     key=f"dl_html_{f_id}"
                 )
-
+ 
     # 2. 이미지 추가 업로드
     st.write("---")
     if "img_uploader_key" not in st.session_state:
@@ -196,15 +254,20 @@ with tab_img:
     if new_img_files:
         if st.button("새 이미지 저장 및 프로젝트에 추가", use_container_width=True):
             from datetime import datetime
-            uploaded_time = datetime.now().strftime("%Y-%m-%d %H:%M")
+            now = datetime.now()
+            uploaded_time = f"{now.year}년 {now.month:02d}월 {now.day:02d}일 {now.hour:02d}시 {now.minute:02d}분"
             for file in new_img_files:
                 file_info = ProjectManager.save_uploaded_file(current_pid, file, "images")
                 file_info["uploaded_at"] = uploaded_time
                 state["files"]["images"].append(file_info)
             ProjectManager.save_state(current_pid, state)
+            
+            # Clear file uploader memory explicitly
+            old_key = f"img_uploader_{st.session_state.img_uploader_key}"
+            if old_key in st.session_state:
+                del st.session_state[old_key]
             st.session_state.img_uploader_key += 1
             st.rerun()
-
 
 # ==========================================
 # [TAB 2: 영상 피드백]
@@ -213,14 +276,23 @@ with tab_vid:
     st.subheader("영상 리뷰 섹션")
     
     saved_videos = state.get("files", {}).get("videos", [])
-    for vid_info in saved_videos:
+    for vid_info in reversed(saved_videos):
         v_id = f"vid_{vid_info['name']}"
         SessionStateManager.init_video_state(v_id)
             
         st.write("---")
         # 업로드 일시 표시 (상단 아주 작게 회색 글씨, 24시간 형식)
-        if "uploaded_at" in vid_info:
-            st.markdown(f"<span style='color: gray; font-size: 0.75rem;'>🕒 업로드 일시: {vid_info['uploaded_at']}</span>", unsafe_allow_html=True)
+        uploaded_at = vid_info.get("uploaded_at")
+        if not uploaded_at and os.path.exists(vid_info['path']):
+            try:
+                mtime = os.path.getmtime(vid_info['path'])
+                dt = datetime.datetime.fromtimestamp(mtime)
+                uploaded_at = f"{dt.year}년 {dt.month:02d}월 {dt.day:02d}일 {dt.hour:02d}시 {dt.minute:02d}분"
+            except Exception:
+                pass
+                
+        if uploaded_at:
+            st.markdown(f"<div style='color: #888888; font-size: 11px; margin-bottom: -10px;'>🕒 업로드 일시: {uploaded_at}</div>", unsafe_allow_html=True)
             
         col_title, col_delete = st.columns([8, 2])
         with col_title:
@@ -248,20 +320,34 @@ with tab_vid:
             st.video(vid_info['path'], start_time=v_start_time)
             
             st.markdown("#### 🛠️ 타임라인 핀 지정 도구")
-            current_val = min(st.session_state.get(f"v_slider_{v_id}", v_start_time), duration)
+            
+            # Safe check and conversion of slider session state from integer/float to datetime.time
+            slider_key = f"v_slider_{v_id}"
+            current_slider_val = st.session_state.get(slider_key, seconds_to_time(v_start_time))
+            if isinstance(current_slider_val, (int, float)):
+                current_slider_val = seconds_to_time(current_slider_val)
+                st.session_state[slider_key] = current_slider_val
+                
+            current_val = time_to_seconds(current_slider_val)
+            current_val = min(current_val, duration)
             
             current_time_str = f"{current_val // 60:02d}:{current_val % 60:02d}"
             total_time_str = f"{duration // 60:02d}:{duration % 60:02d}"
             
             st.markdown(f"**⏳ 타임라인 위치 선택 ({current_time_str} / {total_time_str})**")
-            target_seconds = st.slider(
+            
+            fmt = "mm:ss" if duration < 3600 else "HH:mm:ss"
+            
+            target_time = st.slider(
                 "타임라인 슬라이더",
-                min_value=0,
-                max_value=duration,
-                value=v_start_time,
-                key=f"v_slider_{v_id}",
+                min_value=seconds_to_time(0),
+                max_value=seconds_to_time(duration),
+                value=seconds_to_time(v_start_time),
+                key=slider_key,
+                format=fmt,
                 label_visibility="collapsed"
             )
+            target_seconds = time_to_seconds(target_time)
             v_min = target_seconds // 60
             v_sec = target_seconds % 60
 
@@ -276,9 +362,15 @@ with tab_vid:
             )
             st.write("📸 **선택된 재생시점 스냅샷 (클릭하여 핀 꼽기)**")
             
-            v_image = VideoFeedbackUtils.extract_frame_from_path(vid_info['path'], target_seconds)
+            # Sync coordinate from widget state before rendering to optimize latency (no double rerun)
+            v_coords_key = f"v_coords_{v_id}"
+            v_coords = st.session_state.get(v_coords_key)
+            if v_coords and v_coords != st.session_state.v_current_click.get(v_id):
+                st.session_state.v_current_click[v_id] = v_coords
+                
             v_active = st.session_state.v_current_click.get(v_id)
             
+            v_image = VideoFeedbackUtils.extract_frame_from_path(vid_info['path'], target_seconds)
             if v_image:
                 # 리사이징이 extract_frame_from_path 내부에서 이루어지므로 bilinear 호출 최적화 완료
                 v_image_with_pins = VideoFeedbackUtils.draw_pins_on_frame(
@@ -291,11 +383,7 @@ with tab_vid:
                 
                 st.caption(f"🎯 **현재 타임라인 ({v_min:02d}:{v_sec:02d})** - 아래 화면을 클릭하여 위치를 지정하세요.")
                 from streamlit_image_coordinates import streamlit_image_coordinates
-                v_coords = streamlit_image_coordinates(v_image_with_pins, use_column_width="always", key=f"v_coords_{v_id}")
-                
-                if v_coords and v_coords != v_active:
-                    st.session_state.v_current_click[v_id] = v_coords
-                    st.rerun()
+                streamlit_image_coordinates(v_image_with_pins, use_column_width="always", key=v_coords_key)
             else:
                 st.warning("⚠️ 프레임을 읽을 수 없습니다.")
 
@@ -308,6 +396,9 @@ with tab_vid:
                     SessionStateManager.add_video_feedback(v_id, FeedbackConfig.COLOR_MAP[v_sel_color], v_sel_color, target_seconds, v_active["x"], v_active["y"], v_feedback)
                     state["video_data"] = st.session_state.video_data
                     ProjectManager.save_state(current_pid, state)
+                    # Clear coordinates state
+                    if v_coords_key in st.session_state:
+                        st.session_state[v_coords_key] = None
                     st.rerun()
                 else:
                     st.warning("⚠️ 위의 스냅샷 화면에서 위치를 먼저 클릭해 주세요!")
@@ -340,15 +431,20 @@ with tab_vid:
     if new_vid_files:
         if st.button("새 영상 저장 및 프로젝트에 추가", use_container_width=True):
             from datetime import datetime
-            uploaded_time = datetime.now().strftime("%Y-%m-%d %H:%M")
+            now = datetime.now()
+            uploaded_time = f"{now.year}년 {now.month:02d}월 {now.day:02d}일 {now.hour:02d}시 {now.minute:02d}분"
             for file in new_vid_files:
                 file_info = ProjectManager.save_uploaded_file(current_pid, file, "videos")
                 file_info["uploaded_at"] = uploaded_time
                 state["files"]["videos"].append(file_info)
             ProjectManager.save_state(current_pid, state)
+            
+            # Clear file uploader memory explicitly
+            old_key = f"vid_uploader_{st.session_state.vid_uploader_key}"
+            if old_key in st.session_state:
+                del st.session_state[old_key]
             st.session_state.vid_uploader_key += 1
             st.rerun()
-
 
 # ==========================================
 # [TAB 3: 후기 이미지 생성기]
