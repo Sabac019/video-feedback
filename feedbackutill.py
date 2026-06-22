@@ -245,6 +245,16 @@ class VideoFeedbackUtils:
                 s_hours = min(s_hours, 23)
                 t_obj = datetime.time(s_hours, s_minutes, s_seconds)
                 
+                # Increment version of video controls to reset widget values safely without exceptions
+                slider_ver = st.session_state.get(f"v_slider_ver_{file_id}", 0)
+                next_ver = slider_ver + 1
+                st.session_state[f"v_slider_ver_{file_id}"] = next_ver
+                
+                next_slider_key = f"v_slider_{file_id}_{next_ver}"
+                next_start_key = f"v_slider_start_{file_id}_{next_ver}"
+                next_end_key = f"v_slider_end_{file_id}_{next_ver}"
+                next_range_key = f"v_range_check_{file_id}_{next_ver}"
+                
                 if end_time and end_time != time:
                     e_secs = int(end_time)
                     e_hours = e_secs // 3600
@@ -252,11 +262,12 @@ class VideoFeedbackUtils:
                     e_seconds = e_secs % 60
                     e_hours = min(e_hours, 23)
                     e_t_obj = datetime.time(e_hours, e_minutes, e_seconds)
-                    st.session_state[f"v_slider_{file_id}"] = (t_obj, e_t_obj)
-                    st.session_state[f"v_range_check_{file_id}"] = True
+                    st.session_state[next_start_key] = t_obj
+                    st.session_state[next_end_key] = e_t_obj
+                    st.session_state[next_range_key] = True
                 else:
-                    st.session_state[f"v_slider_{file_id}"] = t_obj
-                    st.session_state[f"v_range_check_{file_id}"] = False
+                    st.session_state[next_slider_key] = t_obj
+                    st.session_state[next_range_key] = False
                 st.rerun()
         with col_ed:
             if st.button("✎", key=f"btn_ed_vid_{c_id}", help="수정"):

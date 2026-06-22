@@ -325,13 +325,14 @@ with tab_vid:
             st.markdown("#### 🛠️ 타임라인 핀 지정 도구")
             
             # 구간 선택 여부 체크박스
-            is_range_key = f"v_range_check_{v_id}"
+            slider_ver = st.session_state.get(f"v_slider_ver_{v_id}", 0)
+            is_range_key = f"v_range_check_{v_id}_{slider_ver}"
             is_range = st.checkbox("구간 선택 (시작 ~ 종료 시점 피드백)", value=False, key=is_range_key)
             
             # Safe check and conversion of slider session state
-            slider_key = f"v_slider_{v_id}"
-            start_slider_key = f"v_slider_start_{v_id}"
-            end_slider_key = f"v_slider_end_{v_id}"
+            slider_key = f"v_slider_{v_id}_{slider_ver}"
+            start_slider_key = f"v_slider_start_{v_id}_{slider_ver}"
+            end_slider_key = f"v_slider_end_{v_id}_{slider_ver}"
             fmt = "mm:ss" if duration < 3600 else "HH:mm:ss"
             
             if is_range:
