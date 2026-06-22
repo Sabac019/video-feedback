@@ -422,7 +422,6 @@ with tab_vid:
                 horizontal=True,
                 label_visibility="collapsed"
             )
-            st.write("📸 **선택된 재생시점 스냅샷 (클릭하여 핀 꼽기)**")
             
             # Sync coordinate from widget state before rendering to optimize latency (no double rerun)
             v_coords_key = f"v_coords_{v_id}"
@@ -432,29 +431,73 @@ with tab_vid:
                 
             v_active = st.session_state.v_current_click.get(v_id)
             
-            v_image = VideoFeedbackUtils.extract_frame_from_path(vid_info['path'], target_seconds)
-            if v_image:
-                # 리사이징이 extract_frame_from_path 내부에서 이루어지므로 bilinear 호출 최적화 완료
-                v_image_with_pins = VideoFeedbackUtils.draw_pins_on_frame(
-                    base_img=v_image,
-                    comments=st.session_state.video_data.get(v_id, []),
-                    target_seconds=target_seconds,
-                    active_click=v_active,
-                    active_color=FeedbackConfig.COLOR_MAP[v_sel_color]
-                )
+            if is_range:
+                # Range selection mode: render two previews side-by-side
+                col_p_start, col_p_end = st.columns(2)
                 
-                if is_range:
-                    start_time_str = f"{start_seconds // 60:02d}:{start_seconds % 60:02d}"
-                    end_time_str = f"{end_seconds // 60:02d}:{end_seconds % 60:02d}"
-                    st.caption(f"🎯 **현재 타임라인 구간 ({start_time_str} ~ {end_time_str})** - 아래 화면을 클릭하여 위치를 지정하세요.")
-                else:
-                    st.caption(f"🎯 **현재 타임라인 ({v_min:02d}:{v_sec:02d})** - 아래 화면을 클릭하여 위치를 지정하세요.")
-                
-                from streamlit_image_coordinates import streamlit_image_coordinates
-                # Set explicit width to prevent browser scaling offset!
-                streamlit_image_coordinates(v_image_with_pins, width=v_image.width, key=v_coords_key)
+                with col_p_start:
+                    st.write("📸 **시작 시점 스냅샷 (클릭하여 핀 꼽기)**")
+                    v_image_start = VideoFeedbackUtils.extract_frame_from_path(vid_info['path'], start_seconds)
+                    if v_image_start:
+                        # Resize server-side to 300px width to fit column and keep 100% click accuracy
+                        if v_image_start.width > 300:
+                            ratio = 300.0 / v_image_start.width
+                            v_image_start = v_image_start.resize((300, int(v_image_start.height * ratio)), Image.Resampling.BILINEAR)
+                        
+                        v_image_start_with_pins = VideoFeedbackUtils.draw_pins_on_frame(
+                            base_img=v_image_start,
+                            comments=st.session_state.video_data.get(v_id, []),
+                            target_seconds=start_seconds,
+                            active_click=v_active,
+                            active_color=FeedbackConfig.COLOR_MAP[v_sel_color]
+                        )
+                        
+                        start_time_str = f"{start_seconds // 60:02d}:{start_seconds % 60:02d}"
+                        st.caption(f"🎯 **시작 ({start_time_str})** - 아래 화면을 클릭하세요.")
+                        from streamlit_image_coordinates import streamlit_image_coordinates
+                        streamlit_image_coordinates(v_image_start_with_pins, width=v_image_start.width, key=v_coords_key)
+                    else:
+                        st.warning("⚠️ 프레임을 읽을 수 없습니다.")
+                        
+                with col_p_end:
+                    st.write("📸 **종료 시점 스냅샷**")
+                    v_image_end = VideoFeedbackUtils.extract_frame_from_path(vid_info['path'], end_seconds)
+                    if v_image_end:
+                        # Resize server-side to 300px width
+                        if v_image_end.width > 300:
+                            ratio = 300.0 / v_image_end.width
+                            v_image_end = v_image_end.resize((300, int(v_image_end.height * ratio)), Image.Resampling.BILINEAR)
+                            
+                        v_image_end_with_pins = VideoFeedbackUtils.draw_pins_on_frame(
+                            base_img=v_image_end,
+                            comments=st.session_state.video_data.get(v_id, []),
+                            target_seconds=end_seconds,
+                            active_click=None,
+                            active_color=FeedbackConfig.COLOR_MAP[v_sel_color]
+                        )
+                        
+                        end_time_str = f"{end_seconds // 60:02d}:{end_seconds % 60:02d}"
+                        st.caption(f"🎯 **종료 ({end_time_str})**")
+                        st.image(v_image_end_with_pins, width=v_image_end.width)
+                    else:
+                        st.warning("⚠️ 프레임을 읽을 수 없습니다.")
             else:
-                st.warning("⚠️ 프레임을 읽을 수 없습니다.")
+                # Single point selection mode
+                st.write("📸 **선택된 재생시점 스냅샷 (클릭하여 핀 꼽기)**")
+                v_image = VideoFeedbackUtils.extract_frame_from_path(vid_info['path'], target_seconds)
+                if v_image:
+                    v_image_with_pins = VideoFeedbackUtils.draw_pins_on_frame(
+                        base_img=v_image,
+                        comments=st.session_state.video_data.get(v_id, []),
+                        target_seconds=target_seconds,
+                        active_click=v_active,
+                        active_color=FeedbackConfig.COLOR_MAP[v_sel_color]
+                    )
+                    st.caption(f"🎯 **현재 타임라인 ({v_min:02d}:{v_sec:02d})** - 아래 화면을 클릭하여 위치를 지정하세요.")
+                    from streamlit_image_coordinates import streamlit_image_coordinates
+                    streamlit_image_coordinates(v_image_with_pins, width=v_image.width, key=v_coords_key)
+                else:
+                    st.warning("⚠️ 프레임을 읽을 수 없습니다.")
 
             st.write("---")
             st.write("💬 **영상 타임라인 챗**")
