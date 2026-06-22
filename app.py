@@ -199,32 +199,37 @@ with tab_vid:
         
         with col_vid:
             # 디스크 경로를 직접 넘겨 스트리밍 렌더링 (사운드 및 로딩 성능 최적화)
-            # 세션 상태에 저장된 시작 시간(기본값 0)을 연동하여 특정 시점으로 바로 점프할 수 있도록 함
             v_start_time = st.session_state.get(f"v_start_{v_id}", 0)
             st.video(vid_info['path'], start_time=v_start_time)
             
             st.markdown("#### 🛠️ 타임라인 핀 지정 도구")
-            v_col_m, v_col_s, v_col_r = st.columns([3, 3, 4])
-            with v_col_m:
-                v_min = st.number_input("⏳ 분 입력", min_value=0, max_value=59, value=0, step=1, key=f"vmin_{v_id}")
-            with v_col_s:
-                v_sec = st.number_input("⏱️ 초 입력", min_value=0, max_value=59, value=0, step=1, key=f"vsec_{v_id}")
-            with v_col_r:
-                v_sel_color = st.radio("핀 색상 선택", list(FeedbackConfig.COLOR_MAP.keys()), key=f"v_radio_{v_id}", horizontal=True)
-            
-            target_seconds = (v_min * 60) + v_sec
+            duration = VideoFeedbackUtils.get_video_duration(vid_info['path'])
+            target_seconds = st.slider(
+                "⏳ 타임라인 위치 선택 (초)",
+                min_value=0,
+                max_value=duration,
+                value=v_start_time,
+                key=f"v_slider_{v_id}"
+            )
+            v_min = target_seconds // 60
+            v_sec = target_seconds % 60
 
         with col_vchat:
+            st.write("🎨 **핀 색상 선택**")
+            v_sel_color = st.radio(
+                "핀 색상 선택",
+                list(FeedbackConfig.COLOR_MAP.keys()),
+                key=f"v_radio_{v_id}",
+                horizontal=True,
+                label_visibility="collapsed"
+            )
             st.write("📸 **선택된 재생시점 스냅샷 (클릭하여 핀 꼽기)**")
             
-            # 디스크 경로를 직접 넘겨서 프레임 고속 추출 (캐싱 적용)
             v_image = VideoFeedbackUtils.extract_frame_from_path(vid_info['path'], target_seconds)
-                
             v_active = st.session_state.v_current_click.get(v_id)
             
             if v_image:
                 v_image = resize_image(v_image, max_width=600)
-                
                 v_image_with_pins = VideoFeedbackUtils.draw_pins_on_frame(
                     base_img=v_image,
                     comments=st.session_state.video_data.get(v_id, []),
@@ -250,7 +255,6 @@ with tab_vid:
             if v_feedback:
                 if v_active:
                     SessionStateManager.add_video_feedback(v_id, FeedbackConfig.COLOR_MAP[v_sel_color], v_sel_color, target_seconds, v_active["x"], v_active["y"], v_feedback)
-                    # 즉시 디스크 저장하여 실시간 동기화
                     state["video_data"] = st.session_state.video_data
                     ProjectManager.save_state(current_pid, state)
                     st.rerun()
@@ -264,7 +268,6 @@ with tab_vid:
                 for vc in v_comments:
                     VideoFeedbackUtils.render_feedback_card(v_id, vc, lambda: ProjectManager.save_state(current_pid, state))
                 
-                # HTML 내보내기 버튼 추가
                 st.write("---")
                 from html_exporter import export_video_project_to_html
                 v_html_code = export_video_project_to_html(state.get("name", "프로젝트"), vid_info['name'], v_comments)

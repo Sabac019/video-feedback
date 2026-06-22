@@ -89,6 +89,23 @@ class VideoFeedbackUtils:
     """영상 피드백 관련 유틸리티 모음"""
     
     @staticmethod
+    @st.cache_data(show_spinner=False)
+    def get_video_duration(video_path: str) -> int:
+        """비디오 파일의 총 길이(초)를 구합니다."""
+        duration = 0
+        try:
+            cap = cv2.VideoCapture(video_path)
+            fps = cap.get(cv2.CAP_PROP_FPS)
+            frame_count = cap.get(cv2.CAP_PROP_FRAME_COUNT)
+            if fps > 0 and frame_count > 0:
+                duration = int(frame_count / fps)
+            cap.release()
+        except Exception:
+            pass
+        return duration if duration > 0 else 600  # 실패 시 기본값 10분(600초)
+    
+    
+    @staticmethod
     def extract_frame(video_file, target_seconds: int) -> Image.Image:
         """
         업로드된 비디오 파일에서 특정 초(second)의 프레임을 추출하여 PIL Image로 반환합니다.
