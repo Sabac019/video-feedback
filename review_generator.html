@@ -1,0 +1,2726 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>프리미엄 학생 후기 카드 생성기</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=Outfit:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
+    <!-- html2canvas CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #0b0f17;
+            --panel-bg: #151d30;
+            --panel-border: #243049;
+            --text-main: #f1f5f9;
+            --text-muted: #64748b;
+            --accent-color: #6366f1;
+            --accent-hover: #4f46e5;
+            --font-family: 'Outfit', 'Noto Sans KR', sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+            padding: 20px;
+        }
+
+        header {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #818cf8 0%, #d946ef 50%, #6366f1 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 6px;
+        }
+
+        header p {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        .main-container {
+            display: grid;
+            grid-template-columns: 460px 1fr;
+            gap: 24px;
+            max-width: 1500px;
+            width: 100%;
+            margin: 0 auto;
+            flex-grow: 1;
+        }
+
+        @media (max-width: 1100px) {
+            .main-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* 컨트롤 패널 */
+        .control-panel {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 20px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            overflow-y: auto;
+            max-height: 85vh;
+        }
+
+        /* 스크롤바 디자인 */
+        .control-panel::-webkit-scrollbar {
+            width: 6px;
+        }
+        .control-panel::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.1);
+        }
+        .control-panel::-webkit-scrollbar-thumb {
+            background: #243049;
+            border-radius: 3px;
+        }
+
+        .section-title {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #818cf8;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            border-left: 3px solid var(--accent-color);
+            padding-left: 8px;
+            margin-bottom: 12px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+
+        label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #94a3b8;
+        }
+
+        input[type="text"], .rich-editor {
+            background-color: #0b0f17;
+            border: 1px solid var(--panel-border);
+            border-radius: 10px;
+            color: #f8fafc;
+            padding: 10px 14px;
+            font-size: 0.9rem;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus, .rich-editor:focus {
+            border-color: var(--accent-color);
+        }
+
+        /* 에디터 컨테이너 */
+        .editor-container {
+            border: 1px solid var(--panel-border);
+            border-radius: 10px;
+            background-color: #0b0f17;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .editor-toolbar {
+            background-color: #1a233a;
+            border-bottom: 1px solid var(--panel-border);
+            padding: 8px 10px;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .toolbar-group {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            border-right: 1px solid var(--panel-border);
+            padding-right: 8px;
+            margin-right: 2px;
+        }
+        
+        .toolbar-group:last-child {
+            border-right: none;
+            padding-right: 0;
+            margin-right: 0;
+        }
+
+        .toolbar-btn {
+            background: #243049;
+            border: none;
+            color: #cbd5e1;
+            border-radius: 6px;
+            padding: 5px 8px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .toolbar-btn:hover {
+            background: #314263;
+            color: #fff;
+        }
+
+        .toolbar-btn.active {
+            background: var(--accent-color);
+            color: #fff;
+        }
+
+        .color-picker-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .color-picker-wrapper input[type="color"] {
+            border: none;
+            background: none;
+            width: 22px;
+            height: 22px;
+            cursor: pointer;
+        }
+
+        .rgb-inputs {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            font-size: 0.7rem;
+            color: #94a3b8;
+        }
+
+        .rgb-inputs input {
+            width: 38px;
+            background: #0b0f17;
+            border: 1px solid var(--panel-border);
+            border-radius: 4px;
+            color: #fff;
+            text-align: center;
+            padding: 2px 0;
+            font-size: 0.7rem;
+        }
+
+        .rich-editor {
+            min-height: 120px;
+            max-height: 200px;
+            overflow-y: auto;
+            border: none;
+            border-radius: 0;
+            background-color: transparent;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        /* 별점 설정 */
+        .star-rating-picker {
+            display: flex;
+            gap: 4px;
+            font-size: 1.3rem;
+            color: #334155;
+        }
+
+        .star-picker-item {
+            cursor: pointer;
+            transition: color 0.15s, transform 0.15s;
+        }
+
+        .star-picker-item:hover {
+            transform: scale(1.25);
+        }
+
+        .star-picker-item.active {
+            color: #facc15;
+        }
+
+        /* 별점 색상 & 사이즈 조절 */
+        .star-styling-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            background: #1a233a;
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 4px;
+        }
+
+        /* 토글/버튼 그룹 */
+        .btn-group-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+        }
+
+        .ratio-btn, .theme-btn {
+            background-color: #243049;
+            border: 1px solid transparent;
+            color: #cbd5e1;
+            padding: 8px 4px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .ratio-btn:hover, .theme-btn:hover {
+            background-color: #314263;
+            color: #fff;
+        }
+
+        .ratio-btn.active, .theme-btn.active {
+            background-color: var(--accent-color);
+            color: #fff;
+        }
+
+        /* 그라디언트 및 테마별 색상 커스텀 패널 */
+        .gradient-builder-panel {
+            background-color: #1a233a;
+            border: 1px solid var(--panel-border);
+            border-radius: 10px;
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 8px;
+        }
+
+        .color-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px;
+        }
+
+        .color-inputs-wrap {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .color-inputs-wrap input[type="color"] {
+            border: none;
+            background: none;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+        }
+
+        /* 슬라이더 스타일 */
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .slider-container input[type="range"] {
+            flex-grow: 1;
+            accent-color: var(--accent-color);
+            cursor: pointer;
+            height: 5px;
+            border-radius: 3px;
+            background: #243049;
+            outline: none;
+        }
+
+        .slider-value {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #cbd5e1;
+            width: 32px;
+            text-align: right;
+        }
+
+        /* 액션 버튼 */
+        .action-container {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .primary-btn {
+            background: linear-gradient(135deg, #a855f7 0%, #6366f1 100%);
+            border: none;
+            color: white;
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.35);
+        }
+
+        .primary-btn:hover {
+            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
+            transform: translateY(-1px);
+        }
+
+        .primary-btn:active {
+            transform: translateY(1px);
+        }
+
+        .secondary-btn {
+            background-color: #243049;
+            border: 1px solid transparent;
+            color: #e2e8f0;
+            padding: 10px;
+            border-radius: 10px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .secondary-btn:hover {
+            background-color: #314263;
+            color: #fff;
+        }
+
+        /* 프리뷰 영역 */
+        .preview-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .preview-header span {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .preview-container {
+            background-color: #070a12;
+            border: 2px dashed #243049;
+            border-radius: 24px;
+            height: 650px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+            box-shadow: inset 0 4px 20px rgba(0,0,0,0.6);
+        }
+
+        /* 투명 배경 체크 시 바둑판 패턴 overlay */
+        .transparent-checkered {
+            background-color: #ffffff !important;
+            background-image: 
+                linear-gradient(45deg, #e2e8f0 25%, transparent 25%), 
+                linear-gradient(-45deg, #e2e8f0 25%, transparent 25%), 
+                linear-gradient(45deg, transparent 75%, #e2e8f0 75%), 
+                linear-gradient(-45deg, transparent 75%, #e2e8f0 75%) !important;
+            background-size: 20px 20px !important;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px !important;
+        }
+
+        /* ==================================================== */
+        /* 카드 뷰포트 (실제 고해상도 디자인 박스) */
+        /* ==================================================== */
+        #card-viewport {
+            transform-origin: center center;
+            flex-shrink: 0;
+            border-radius: 0px;
+            box-shadow: 0 35px 70px rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: absolute;
+            overflow: hidden;
+            background: linear-gradient(135deg, #0f172a 0%, #020617 100%);
+        }
+
+        /* 리얼 돔 배경 글로우 볼 (메시 그라디언트용) */
+        .bg-glow-container {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .bg-glow {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(120px);
+            opacity: 0.65;
+        }
+
+        .glow-1 {
+            width: 1000px;
+            height: 1000px;
+            top: -300px;
+            left: -200px;
+            background: radial-gradient(circle, rgba(232,167,236,0.6) 0%, rgba(232,167,236,0) 70%);
+        }
+
+        .glow-2 {
+            width: 900px;
+            height: 900px;
+            bottom: -200px;
+            right: -150px;
+            background: radial-gradient(circle, rgba(63,94,251,0.5) 0%, rgba(63,94,251,0) 70%);
+        }
+
+        /* ==================================================== */
+        /* 텍스처 오버레이 클래스 (요청 프리셋 반영) */
+        /* ==================================================== */
+
+        /* 1. Grainy Noise 오버레이 */
+        .texture-grainy {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 3;
+            opacity: 0.18;
+            mix-blend-mode: overlay;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+            display: none;
+        }
+
+        /* 2. Halftone 오버레이 (대각선 망점 특유 레이아웃) */
+        .texture-halftone {
+            position: absolute;
+            top: -50%; left: -50%; width: 200%; height: 200%;
+            pointer-events: none;
+            z-index: 3;
+            opacity: 0.28;
+            mix-blend-mode: normal;
+            background-image: radial-gradient(circle, #ffffff 25%, transparent 26%);
+            background-size: 24px 24px;
+            transform: rotate(45deg);
+            display: none;
+        }
+
+        /* 3. Light Leak 오버레이 */
+        .texture-lightleak {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 2;
+            background: 
+                radial-gradient(circle at 85% 45%, rgba(255, 69, 0, 0.75) 0%, rgba(236, 72, 153, 0.45) 35%, transparent 70%),
+                radial-gradient(circle at 100% 60%, rgba(250, 204, 21, 0.5) 0%, transparent 55%),
+                radial-gradient(circle at 20% 80%, rgba(14, 165, 233, 0.3) 0%, transparent 60%);
+            display: none;
+        }
+
+        /* 4. Fractal Glass 오버레이 ( ribbed fluted glass 효과) */
+        .texture-fractalglass {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 4;
+            opacity: 0.18;
+            background: linear-gradient(90deg, 
+                rgba(255, 255, 255, 0.25) 0%, 
+                rgba(255, 255, 255, 0) 20%, 
+                rgba(0, 0, 0, 0.12) 50%, 
+                rgba(255, 255, 255, 0) 80%, 
+                rgba(255, 255, 255, 0.3) 100%);
+            background-size: 26px 100%;
+            display: none;
+        }
+
+        /* 5. Cardboard Texture 구김 오버레이 (CSS & SVG 복합 구김 표현) */
+        .texture-cardboard {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 3;
+            opacity: 0.75;
+            mix-blend-mode: multiply;
+            background: 
+                linear-gradient(135deg, rgba(255,255,255,0.18) 0%, rgba(0,0,0,0.08) 50%, rgba(255,255,255,0.12) 100%),
+                linear-gradient(45deg, rgba(0,0,0,0.05) 0%, rgba(255,255,255,0.12) 75%, rgba(0,0,0,0.05) 100%);
+            display: none;
+        }
+
+        /* 6. Plastic Wrap 주름 오버레이 (specular 하이라이트 반사막 효과) */
+        .texture-plasticwrap {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 4;
+            opacity: 0.65;
+            mix-blend-mode: screen;
+            background: 
+                linear-gradient(115deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0) 25%, rgba(255,255,255,0.18) 42%, rgba(255,255,255,0) 65%, rgba(255,255,255,0.22) 80%, rgba(255,255,255,0) 100%),
+                linear-gradient(215deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 35%, rgba(255,255,255,0.2) 55%, rgba(255,255,255,0) 75%, rgba(255,255,255,0.12) 100%);
+            display: none;
+        }
+
+        /* ==================================================== */
+        /* 후기 카드 박스 (Bento / Glass 2.0 스타일) */
+        /* ==================================================== */
+        .review-card {
+            width: 82%;
+            height: auto;
+            max-height: 80%;
+            border-radius: 30px;
+            padding: 48px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            gap: 28px;
+            position: relative;
+            z-index: 10;
+            box-sizing: border-box;
+            background: rgba(10, 15, 30, 0.55);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+            color: #ffffff;
+            transition: all 0.2s;
+        }
+
+        .card-cardboard-style {
+            background: rgba(253, 250, 242, 0.95);
+            border: 1.5px solid #8c7155;
+            color: #4a3622;
+            box-shadow: 0 20px 45px rgba(74, 54, 34, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+        }
+
+        /* 큰따옴표 데코레이션 */
+        .quote-icon {
+            position: absolute;
+            font-size: 140px;
+            font-family: 'Georgia', serif;
+            font-weight: bold;
+            opacity: 0.12;
+            line-height: 1;
+            pointer-events: none;
+            user-select: none;
+            color: #818cf8;
+        }
+        .quote-left {
+            top: 24px;
+            left: 32px;
+        }
+        .quote-right {
+            bottom: -20px;
+            right: 40px;
+        }
+        
+        .card-cardboard-style .quote-icon {
+            color: #8c7155;
+            opacity: 0.18;
+        }
+
+        /* 후기 글 영역 */
+        .review-text-container {
+            position: relative;
+            z-index: 5;
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+        }
+
+        .review-display-text {
+            font-size: 32px;
+            font-weight: 400;
+            line-height: 1.6;
+            word-break: keep-all;
+            white-space: pre-wrap;
+            width: 100%;
+            text-align: left;
+        }
+
+        /* 작성자 정보 영역 */
+        .reviewer-info-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding-top: 24px;
+            z-index: 5;
+        }
+        
+        .card-cardboard-style .reviewer-info-container {
+            border-top: 1px solid rgba(74, 54, 34, 0.12);
+        }
+
+        .reviewer-profile {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .reviewer-avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 22px;
+            font-weight: 700;
+            color: #ffffff;
+            background: linear-gradient(135deg, #818cf8, #d946ef);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+        }
+        
+        .card-cardboard-style .reviewer-avatar {
+            background: linear-gradient(135deg, #8c7155, #b89c7d);
+        }
+
+        .reviewer-details {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .reviewer-name {
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .reviewer-label {
+            font-size: 13px;
+            opacity: 0.5;
+        }
+
+        .stars-container {
+            display: flex;
+            gap: 4px;
+        }
+
+        .star-icon {
+            width: 26px;
+            height: 26px;
+            fill: #334155;
+            transition: fill 0.2s;
+        }
+
+        /* ==================================================== */
+        /* [개선] 확대 및 크롭된 스마트폰 어플 목업 (Mobile Mockup) */
+        /* 내용이 더 크게 보이고, 하단 40%가 잘리도록 디자인 */
+        /* ==================================================== */
+        .phone-mockup {
+            width: 680px; /* 대폭 확대 (기존 440px -> 680px) */
+            height: 1200px; /* 비율 비례 확대 (기존 840px -> 1200px) */
+            background: #090e1a;
+            border: 18px solid #2e384d;
+            border-radius: 60px;
+            box-shadow: 0 50px 120px rgba(0,0,0,0.9), 0 0 0 4px #1c2333;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: absolute;
+            z-index: 10;
+            box-sizing: border-box;
+            
+            /* [피드백 반영] 하단 40%가 잘려도 위에 글이 돋보이게 위쪽 배치 */
+            top: 100px; 
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .phone-notch {
+            position: absolute;
+            top: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 170px;
+            height: 32px;
+            background: #000;
+            border-radius: 20px;
+            z-index: 99;
+        }
+
+        .phone-screen {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            background: #090d16;
+            padding: 24px 0 8px 0;
+            color: #f1f5f9;
+            box-sizing: border-box;
+            justify-content: flex-start;
+            gap: 10px;
+        }
+
+        /* status bar */
+        .phone-status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 32px 14px 32px;
+            font-size: 16px;
+            font-weight: 600;
+            letter-spacing: 0.2px;
+            color: #ffffff;
+            opacity: 0.9;
+        }
+
+        .status-icons {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+
+        /* app bar */
+        .phone-app-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 28px;
+            background: #111827;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .header-back {
+            font-size: 18px;
+            color: #818cf8;
+            font-weight: bold;
+        }
+
+        .header-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #f1f5f9;
+        }
+
+        .header-more {
+            font-size: 18px;
+            color: #94a3b8;
+        }
+
+        /* screen content feed */
+        .phone-app-content {
+            padding: 32px 24px;
+            display: flex;
+            flex-direction: column;
+            background: #0a0e17;
+        }
+
+        .phone-post-card {
+            background: #111827;
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            border-radius: 32px;
+            padding: 36px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.4);
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .phone-profile-row {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .phone-avatar {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #818cf8, #d946ef);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 26px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+
+        .phone-profile-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex-grow: 1;
+        }
+
+        .phone-user-name {
+            font-size: 20px;
+            font-weight: 700;
+            color: #f8fafc;
+        }
+
+        .phone-user-tag {
+            font-size: 14px;
+            color: #10b981;
+            font-weight: 600;
+        }
+
+        .phone-rating-stars {
+            display: flex;
+            gap: 4px;
+        }
+
+        .phone-review-body {
+            font-size: 24px; /* 본문 텍스트 크기 확대 (가독성 향상) */
+            line-height: 1.65;
+            color: #cbd5e1;
+            word-break: keep-all;
+            text-align: left;
+        }
+
+        .phone-card-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            padding-top: 20px;
+            font-size: 14px;
+            color: #64748b;
+        }
+
+        .phone-home-indicator {
+            width: 180px;
+            height: 5px;
+            background: rgba(255, 255, 255, 0.25);
+            border-radius: 10px;
+            align-self: center;
+            margin-top: auto;
+            margin-bottom: 8px;
+        }
+
+        /* ==================================================== */
+        /* 종횡비별 목업 크기 및 위치 조정 (피드백 반영) */
+        /* ==================================================== */
+
+        /* 1. 1:1 정사각형 비율 (1080x1080) */
+        /* 폰 높이가 1200px이므로 top:100px 시 바닥이 1300px에 위치. 1080px에서 하단 220px(약 20%) 잘림 */
+        #card-viewport[data-ratio="1-1"] .phone-mockup {
+            width: 780px;
+            height: 1250px;
+            top: 120px;
+        }
+
+        /* 2. 9:16 세로형 비율 (1080x1920) */
+        /* 폰 높이가 1920px 이상이어야 40% 잘림을 달성하므로, 가로세로를 뻥튀기 스케일링 */
+        #card-viewport[data-ratio="9-16"] .phone-mockup {
+            width: 1040px; /* 가로폭을 거의 다 채움 */
+            height: 1900px;
+            top: 180px; /* 180px + 1900px = 2080px. 아래로 160px 잘림 */
+        }
+        #card-viewport[data-ratio="9-16"] .phone-review-body {
+            font-size: 28px; /* 9:16에서는 더 큰 폰트로 수강평 가독성 확보 */
+        }
+
+        /* 3. 16:9 가로형 비율 (1920x1080) */
+        /* 뷰포트 높이가 1080px로 좁으므로, 1200px 폰은 하단이 크게 잘려 자연스러운 연출이 나옴 */
+        #card-viewport[data-ratio="16-9"] .phone-mockup {
+            width: 760px;
+            height: 1250px;
+            top: 100px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- SVG 필터 정의 -->
+    <svg style="position: absolute; width: 0; height: 0;" width="0" height="0">
+        <defs>
+            <!-- Cardboard Texture 구김 조명 필터 -->
+            <filter id="cardboard-filter">
+                <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="4" result="noise" />
+                <feDiffuseLighting in="noise" lighting-color="#ffffff" surfaceScale="2" result="light">
+                    <feDistantLight azimuth="45" elevation="55" />
+                </feDiffuseLighting>
+                <feBlend mode="multiply" in="SourceGraphic" in2="light" />
+            </filter>
+            
+            <!-- Plastic Wrap 반사광 필터 -->
+            <filter id="plastic-filter">
+                <feTurbulence type="fractalNoise" baseFrequency="0.015" numOctaves="3" result="noise" />
+                <feSpecularLighting in="noise" specularConstant="1.5" specularExponent="40" surfaceScale="4" lighting-color="#ffffff" result="light">
+                    <feDistantLight azimuth="135" elevation="50" />
+                </feSpecularLighting>
+                <feBlend mode="screen" in="SourceGraphic" in2="light" />
+            </filter>
+        </defs>
+    </svg>
+
+    <header>
+        <h1>✨ 프리미엄 학생 후기 카드 생성기</h1>
+        <p>각 템플릿별 실시간 색상 커스터마이징 및 모바일 피드백 강조 테마(확대/크롭)를 지원합니다.</p>
+    </header>
+
+    <div class="main-container">
+        <!-- 왼쪽: 컨트롤 패널 -->
+        <div class="control-panel">
+            
+            <!-- 1. 비율 및 템플릿 설정 -->
+            <div>
+                <div class="section-title">1. 레이아웃 & 비율</div>
+                <div class="form-group">
+                    <label>이미지 종횡비 (Aspect Ratio)</label>
+                    <div class="btn-group-row">
+                        <button type="button" class="ratio-btn active" data-ratio="1-1">1:1 (정사각형)</button>
+                        <button type="button" class="ratio-btn" data-ratio="9-16">9:16 (세로/스토리)</button>
+                        <button type="button" class="ratio-btn" data-ratio="16-9">16:9 (가로형)</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. 배경 디자인 테마 선택 -->
+            <div>
+                <div class="section-title">2. 배경 프리셋 테마</div>
+                <div class="form-group" style="margin-bottom: 8px;">
+                    <label>테마 선택</label>
+                    <div class="btn-group-row" style="grid-template-columns: repeat(3, 1fr); gap: 4px; margin-bottom: 6px;">
+                        <button type="button" class="theme-btn active" data-theme="grainy">Grainy Noise</button>
+                        <button type="button" class="theme-btn" data-theme="halftone">Halftone</button>
+                        <button type="button" class="theme-btn" data-theme="lightleak">Light Leak</button>
+                    </div>
+                    <div class="btn-group-row" style="grid-template-columns: repeat(3, 1fr); gap: 4px; margin-bottom: 6px;">
+                        <button type="button" class="theme-btn" data-theme="fractalglass">Fractal Glass</button>
+                        <button type="button" class="theme-btn" data-theme="cardboard">Cardboard</button>
+                        <button type="button" class="theme-btn" data-theme="plasticwrap">Plastic Wrap</button>
+                    </div>
+                    <div class="btn-group-row" style="grid-template-columns: 1.2fr 1fr; gap: 4px;">
+                        <button type="button" class="theme-btn" data-theme="mobile" style="background: linear-gradient(135deg, #6366f1, #a855f7); color:#fff; font-weight:700;">📱 Mobile App (목업)</button>
+                        <button type="button" class="theme-btn" data-theme="custom">🎨 나만의 배경 제작</button>
+                    </div>
+                </div>
+
+                <!-- 테마 색상 및 속성 실시간 조절 패널 (모든 테마 호환 작동) -->
+                <div class="gradient-builder-panel" id="gradient-builder">
+                    <label style="color: #818cf8; font-weight: 700;" id="builder-title">배경 테마 색상 조절</label>
+                    
+                    <div class="color-row" id="row-c1">
+                        <label id="lbl-c1">색상 1</label>
+                        <div class="color-inputs-wrap">
+                            <input type="color" id="grad-c1" value="#e8a7ec">
+                            <span class="rgb-inputs">
+                                <input type="number" id="grad-c1-r" value="232">
+                                <input type="number" id="grad-c1-g" value="167">
+                                <input type="number" id="grad-c1-b" value="236">
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div class="color-row" id="row-c2">
+                        <label id="lbl-c2">색상 2</label>
+                        <div class="color-inputs-wrap">
+                            <input type="color" id="grad-c2" value="#3f5efb">
+                            <span class="rgb-inputs">
+                                <input type="number" id="grad-c2-r" value="63">
+                                <input type="number" id="grad-c2-g" value="94">
+                                <input type="number" id="grad-c2-b" value="251">
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div class="color-row" id="row-c3">
+                        <label id="lbl-c3">색상 3</label>
+                        <div class="color-inputs-wrap">
+                            <input type="color" id="grad-c3" value="#090e1a">
+                            <span class="rgb-inputs">
+                                <input type="number" id="grad-c3-r" value="9">
+                                <input type="number" id="grad-c3-g" value="14">
+                                <input type="number" id="grad-c3-b" value="26">
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group" style="margin-top: 4px;" id="row-angle">
+                        <label for="grad-angle" id="lbl-angle">각도 조절</label>
+                        <div class="slider-container">
+                            <input type="range" id="grad-angle" min="0" max="360" value="135">
+                            <span class="slider-value" id="grad-angle-val">135°</span>
+                        </div>
+                    </div>
+
+                    <!-- 하프톤 전용 망점 커스터마이징 패널 -->
+                    <div id="halftone-custom-panel" style="display: none; flex-direction: column; gap: 10px; border-top: 1px solid var(--panel-border); padding-top: 10px; margin-top: 6px;">
+                        <label style="color: #818cf8; font-weight: 700; font-size: 0.8rem;">망점 중심 위치 & 밀집도 조절</label>
+                        
+                        <div class="form-group">
+                            <label for="ht-center-x">중심 X 위치 (가로)</label>
+                            <div class="slider-container">
+                                <input type="range" id="ht-center-x" min="0" max="100" value="50">
+                                <span class="slider-value" id="ht-center-x-val">50%</span>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="ht-center-y">중심 Y 위치 (세로)</label>
+                            <div class="slider-container">
+                                <input type="range" id="ht-center-y" min="0" max="100" value="50">
+                                <span class="slider-value" id="ht-center-y-val">50%</span>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="ht-spacing">망점 기본 간격</label>
+                            <div class="slider-container">
+                                <input type="range" id="ht-spacing" min="12" max="60" value="24">
+                                <span class="slider-value" id="ht-spacing-val">24px</span>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="ht-density">망점 집중 밀집도</label>
+                            <div class="slider-container">
+                                <input type="range" id="ht-density" min="0" max="20" value="5">
+                                <span class="slider-value" id="ht-density-val">0.5</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. 후기 텍스트 작성 및 굵기/색상/형광펜 지정 -->
+            <div>
+                <div class="section-title">3. 후기 텍스트 작성 & 스타일 툴바</div>
+                <div class="form-group">
+                    <label>작성 후 블록 설정하여 적용 (글자색과 형광펜 개별 선택 가능)</label>
+                    <div class="editor-container">
+                        <!-- 에디터 툴바 -->
+                        <div class="editor-toolbar">
+                            <!-- 폰트 굵기 그룹 -->
+                            <div class="toolbar-group">
+                                <button type="button" class="toolbar-btn" id="btn-weight-thin">얇게</button>
+                                <button type="button" class="toolbar-btn active" id="btn-weight-normal">보통</button>
+                                <button type="button" class="toolbar-btn" id="btn-weight-bold">굵게</button>
+                                <button type="button" class="toolbar-btn" id="btn-weight-black">헤비</button>
+                            </div>
+                            
+                            <!-- 정렬 그룹 -->
+                            <div class="toolbar-group">
+                                <button type="button" class="toolbar-btn active" id="btn-align-left">◀</button>
+                                <button type="button" class="toolbar-btn" id="btn-align-center">■</button>
+                                <button type="button" class="toolbar-btn" id="btn-align-right">▶</button>
+                            </div>
+
+                            <!-- 글자 색상 그룹 -->
+                            <div class="toolbar-group">
+                                <div class="color-picker-wrapper">
+                                    <label style="font-size: 0.7rem; color:#94a3b8; margin-right: 2px;">글자색:</label>
+                                    <input type="color" id="text-color-picker" value="#ec4899">
+                                </div>
+                                <div class="rgb-inputs">
+                                    <span>R</span><input type="number" id="text-r" value="236" min="0" max="255">
+                                    <span>G</span><input type="number" id="text-g" value="72" min="0" max="255">
+                                    <span>B</span><input type="number" id="text-b" value="153" min="0" max="255">
+                                    <button type="button" class="toolbar-btn" id="btn-text-rgb-apply" style="padding: 2px 4px;">적용</button>
+                                </div>
+                            </div>
+
+                            <!-- 형광펜 강조 그룹 -->
+                            <div class="toolbar-group" style="border-right: none; margin-right: 0; padding-right: 0; margin-top: 4px; width: 100%;">
+                                <div class="color-picker-wrapper">
+                                    <label style="font-size: 0.7rem; color:#94a3b8; margin-right: 4px;">🖍️ 형광펜 강조:</label>
+                                    <input type="color" id="hl-color-picker" value="#facc15">
+                                </div>
+                                <div class="rgb-inputs" style="flex-grow: 1; justify-content: flex-end;">
+                                    <span>R</span><input type="number" id="hl-r" value="250" min="0" max="255">
+                                    <span>G</span><input type="number" id="hl-g" value="204" min="0" max="255">
+                                    <span>B</span><input type="number" id="hl-b" value="21" min="0" max="255">
+                                    <button type="button" class="toolbar-btn" id="btn-hl-apply" style="background:#5c478a; color:#fff;">강조 적용</button>
+                                    <button type="button" class="toolbar-btn" id="btn-hl-clear" style="background:#334155; color:#f1f5f9;" title="선택 영역 형광펜 효과 제거">형광펜 지우기</button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 실제 리치 텍스트 작성창 -->
+                        <div class="rich-editor" id="rich-editor" contenteditable="true">매주 주어지는 프로젝트 과제 덕분에 <span style="font-weight: 700; color: #a855f7;">포트폴리오 퀄리티가 수직 상승</span>했습니다. 현업 기획자의 <span style="font-weight: 900; background-color: rgba(250, 204, 21, 0.35); padding: 2px 6px; border-radius: 6px; display: inline;">1:1 초밀착 맞춤 피드백</span>은 이 수업의 최고 강점입니다!</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. 학생 정보 및 별점 설정 -->
+            <div>
+                <div class="section-title">4. 수강생 정보 & 별점 색상</div>
+                <div style="display: grid; grid-template-columns: 1fr 1.1fr; gap: 10px; margin-bottom: 8px;">
+                    <div class="form-group">
+                        <label for="student-name">학생 이름</label>
+                        <input type="text" id="student-name" value="김철수" placeholder="예: 김철수">
+                    </div>
+                    <div class="form-group">
+                        <label>별점 설정</label>
+                        <div class="star-rating-picker" id="star-picker">
+                            <span class="star-picker-item active" data-rating="1">★</span>
+                            <span class="star-picker-item active" data-rating="2">★</span>
+                            <span class="star-picker-item active" data-rating="3">★</span>
+                            <span class="star-picker-item active" data-rating="4">★</span>
+                            <span class="star-picker-item active" data-rating="5">★</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 별 스타일링 -->
+                <div class="star-styling-row">
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label>별 색상 (RGB 커스텀)</label>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <input type="color" id="star-color-picker" value="#facc15">
+                            <span class="rgb-inputs">
+                                <input type="number" id="star-r" value="250">
+                                <input type="number" id="star-g" value="204">
+                                <input type="number" id="star-b" value="21">
+                            </span>
+                        </div>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label for="star-size-slider">별 아이콘 크기</label>
+                        <div class="slider-container">
+                            <input type="range" id="star-size-slider" min="18" max="40" value="26">
+                            <span class="slider-value" id="star-size-val">26px</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 5. 상세 스타일 조절 -->
+            <div>
+                <div class="section-title">5. 상세 스타일 설정</div>
+                <div class="form-group" style="margin-bottom: 8px;">
+                    <label for="font-size-slider">기본 글자 크기</label>
+                    <div class="slider-container">
+                        <input type="range" id="font-size-slider" min="20" max="60" value="32">
+                        <span class="slider-value" id="font-size-val">32px</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 6. 액션 실행 버튼 -->
+            <div class="action-container">
+                <!-- 일반 다운로드 -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                    <button type="button" class="primary-btn" id="btn-download" style="box-shadow: 0 4px 15px rgba(99, 102, 241, 0.35);">
+                        <svg style="width: 15px; height: 15px; fill: currentColor; margin-right: 3px;" viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
+                        PNG 다운로드
+                    </button>
+                    <button type="button" class="primary-btn" id="btn-download-svg" style="background: linear-gradient(135deg, #f472b6 0%, #db2777 100%); box-shadow: 0 4px 15px rgba(219, 39, 119, 0.35);">
+                        <svg style="width: 15px; height: 15px; fill: currentColor; margin-right: 3px;" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                        SVG 다운로드
+                    </button>
+                </div>
+                <!-- 투명 배경 다운로드 -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                    <button type="button" class="primary-btn" id="btn-download-trans-png" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); box-shadow: 0 4px 15px rgba(16, 185, 129, 0.35);">
+                        <svg style="width: 15px; height: 15px; fill: currentColor; margin-right: 3px;" viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
+                        투명 PNG 다운로드
+                    </button>
+                    <button type="button" class="primary-btn" id="btn-download-trans-svg" style="background: linear-gradient(135deg, #e11d48 0%, #be123c 100%); box-shadow: 0 4px 15px rgba(225, 29, 72, 0.35);">
+                        <svg style="width: 15px; height: 15px; fill: currentColor; margin-right: 3px;" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                        투명 SVG 다운로드
+                    </button>
+                </div>
+                <!-- 유틸리티 버튼 -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                    <button type="button" class="secondary-btn" id="btn-apply">⚙️ 화면 새로고침</button>
+                    <button type="button" class="secondary-btn" id="btn-example">💡 예시 불러오기</button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- 오른쪽: 실시간 뷰포트 프리뷰 -->
+        <div class="preview-panel">
+            <div class="preview-header">
+                <span>실시간 고해상도 프리뷰</span>
+                <span id="preview-aspect-text">1:1 비율 (1080x1080)</span>
+            </div>
+            
+            <div class="preview-container" id="preview-container">
+                
+                <!-- 뷰포트 (실제 저장되는 크기만큼 렌더링 후 CSS scale 처리) -->
+                <div id="card-viewport" data-ratio="1-1">
+                    
+                    <!-- 1. 메시 그라디언트 베이스용 글로우 컨테이너 -->
+                    <div class="bg-glow-container" id="glow-container">
+                        <div class="bg-glow glow-1"></div>
+                        <div class="bg-glow glow-2"></div>
+                    </div>
+                    
+                    <!-- 2. 프리셋별 리얼 패턴/텍스처 오버레이 레이어 -->
+                    <div class="texture-grainy" id="overlay-grainy"></div>
+                    <div class="texture-halftone" id="overlay-halftone"></div>
+                    <div class="texture-lightleak" id="overlay-lightleak"></div>
+                    <div class="texture-fractalglass" id="overlay-fractalglass"></div>
+                    <div class="texture-cardboard" id="overlay-cardboard"></div>
+                    <div class="texture-plasticwrap" id="overlay-plasticwrap"></div>
+
+                    <!-- 3. 핸드폰 어플 인핸스드 목업 (Mobile App Mockup) -->
+                    <!-- 가로세로를 약 1.5배 이상 크게 확대 배치하고, 아래 40%가 잘리더라도 후기가 크게 노출되도록 조정 -->
+                    <div id="phone-frame" class="phone-mockup" style="display: none;">
+                        <div class="phone-notch"></div>
+                        <div class="phone-screen">
+                            <!-- top status bar -->
+                            <div class="phone-status-bar">
+                                <span class="status-time" id="phone-time">19:47</span>
+                                <div class="status-icons">
+                                    <span>📶</span><span>📶</span><span>🔋</span>
+                                </div>
+                            </div>
+                            
+                            <!-- navigation bar -->
+                            <div class="phone-app-header">
+                                <span class="header-back">◀</span>
+                                <span class="header-title">생생한 수강평</span>
+                                <span class="header-more">⋮</span>
+                            </div>
+                            
+                            <!-- scroll content feed area -->
+                            <div class="phone-app-content">
+                                <div class="phone-post-card">
+                                    <div class="phone-profile-row">
+                                        <div class="phone-avatar" id="phone-avatar-el">김</div>
+                                        <div class="phone-profile-meta">
+                                            <div class="phone-user-name" id="phone-name-el">(김**)</div>
+                                            <div class="phone-user-tag">수강 완료</div>
+                                        </div>
+                                        <div class="phone-rating-stars" id="phone-stars-el">
+                                            <!-- SVG 별 자동 동기화 -->
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- 후기 내용 -->
+                                    <div class="phone-review-body" id="phone-text-el">
+                                        <!-- 리치 텍스트 복사 -->
+                                    </div>
+                                    
+                                    <div class="phone-card-footer">
+                                        <span>오늘 작성됨</span>
+                                        <span>👍 24  💬 4</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- bottom indicator -->
+                            <div class="phone-home-indicator"></div>
+                        </div>
+                    </div>
+
+                    <div class="quote-icon quote-left">“</div>
+                    
+                    <!-- 일반 후기 카드 박스 -->
+                    <div class="review-card" id="card-box">
+                        <!-- 리뷰 글 -->
+                        <div class="review-text-container">
+                            <div class="review-display-text" id="preview-text">매주 주어지는 프로젝트 과제 덕분에 <span style="font-weight: 700; color: #a855f7;">포트폴리오 퀄리티가 수직 상승</span>했습니다. 현업 기획자의 <span style="font-weight: 900; background-color: rgba(250, 204, 21, 0.35); padding: 2px 6px; border-radius: 6px; display: inline;">1:1 초밀착 맞춤 피드백</span>은 이 수업의 최고 강점입니다!</div>
+                        </div>
+                        
+                        <!-- 하단 작성자 및 별점 -->
+                        <div class="reviewer-info-container">
+                            <div class="reviewer-profile">
+                                <div class="reviewer-avatar" id="preview-avatar">김</div>
+                                <div class="reviewer-details">
+                                    <div class="reviewer-name" id="preview-name">(김**)</div>
+                                    <div class="reviewer-label">수강생 후기</div>
+                                </div>
+                            </div>
+                            
+                            <div class="stars-container" id="preview-stars">
+                                <!-- JS에서 SVG 동적 생성 -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="quote-icon quote-right">”</div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 전역 상태 변수
+        let currentRating = 5;
+        let currentRatio = '1-1';
+        let currentTheme = 'grainy';
+        let savedRange = null;
+        let isClickingOutside = false;
+
+        // 엘리먼트 참조
+        const richEditor = document.getElementById('rich-editor');
+        const studentNameInput = document.getElementById('student-name');
+        const starPicker = document.getElementById('star-picker');
+        
+        const previewText = document.getElementById('preview-text');
+        const previewAvatar = document.getElementById('preview-avatar');
+        const previewName = document.getElementById('preview-name');
+        const previewStars = document.getElementById('preview-stars');
+        const previewAspectText = document.getElementById('preview-aspect-text');
+        
+        const cardViewport = document.getElementById('card-viewport');
+        const cardBox = document.getElementById('card-box');
+        const previewContainer = document.getElementById('preview-container');
+        const glowContainer = document.getElementById('glow-container');
+
+        // 모바일 테마 돔 매핑 엘리먼트
+        const phoneFrame = document.getElementById('phone-frame');
+        const phoneTextEl = document.getElementById('phone-text-el');
+        const phoneNameEl = document.getElementById('phone-name-el');
+        const phoneAvatarEl = document.getElementById('phone-avatar-el');
+        const phoneStarsEl = document.getElementById('phone-stars-el');
+        const phoneTime = document.getElementById('phone-time');
+
+        // 오버레이 참조
+        const overlays = {
+            grainy: document.getElementById('overlay-grainy'),
+            halftone: document.getElementById('overlay-halftone'),
+            lightleak: document.getElementById('overlay-lightleak'),
+            fractalglass: document.getElementById('overlay-fractalglass'),
+            cardboard: document.getElementById('overlay-cardboard'),
+            plasticwrap: document.getElementById('overlay-plasticwrap')
+        };
+
+        // 텍스트 컬러피커 연동
+        const textColorPicker = document.getElementById('text-color-picker');
+        const textR = document.getElementById('text-r');
+        const textG = document.getElementById('text-g');
+        const textB = document.getElementById('text-b');
+
+        // 형광펜 기능 연동
+        const hlColorPicker = document.getElementById('hl-color-picker');
+        const hlR = document.getElementById('hl-r');
+        const hlG = document.getElementById('hl-g');
+        const hlB = document.getElementById('hl-b');
+
+        // 별점 스타일 및 연동
+        const starColorPicker = document.getElementById('star-color-picker');
+        const starR = document.getElementById('star-r');
+        const starG = document.getElementById('star-g');
+        const starB = document.getElementById('star-b');
+        const starSizeSlider = document.getElementById('star-size-slider');
+        const starSizeVal = document.getElementById('star-size-val');
+
+        // 그라디언트 및 테마 속성 연동 엘리먼트
+        const gradC1 = document.getElementById('grad-c1');
+        const gradC1R = document.getElementById('grad-c1-r');
+        const gradC1G = document.getElementById('grad-c1-g');
+        const gradC1B = document.getElementById('grad-c1-b');
+        
+        const gradC2 = document.getElementById('grad-c2');
+        const gradC2R = document.getElementById('grad-c2-r');
+        const gradC2G = document.getElementById('grad-c2-g');
+        const gradC2B = document.getElementById('grad-c2-b');
+
+        const gradC3 = document.getElementById('grad-c3');
+        const gradC3R = document.getElementById('grad-c3-r');
+        const gradC3G = document.getElementById('grad-c3-g');
+        const gradC3B = document.getElementById('grad-c3-b');
+
+        const gradAngle = document.getElementById('grad-angle');
+        const gradAngleVal = document.getElementById('grad-angle-val');
+
+        // 폰트 크기 슬라이더
+        const fontSizeSlider = document.getElementById('font-size-slider');
+        const fontSizeVal = document.getElementById('font-size-val');
+
+        // HEX <-> RGB 변환 도우미
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : null;
+        }
+
+        function rgbToHex(r, g, b) {
+            return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+        }
+
+        // RGB 입력창 동기화 유틸리티
+        function updateRGBInputs(pickerId, hex) {
+            const rgb = hexToRgb(hex);
+            if (rgb) {
+                document.getElementById(pickerId + '-r').value = rgb.r;
+                document.getElementById(pickerId + '-g').value = rgb.g;
+                document.getElementById(pickerId + '-b').value = rgb.b;
+            }
+        }
+
+        // 선택 영역(Selection) 보존 및 복구 매커니즘
+        document.addEventListener('mousedown', (e) => {
+            if (richEditor.contains(e.target)) {
+                isClickingOutside = false;
+            } else {
+                isClickingOutside = true;
+            }
+        });
+
+        richEditor.addEventListener('keydown', () => {
+            isClickingOutside = false;
+        });
+
+        function saveSelection() {
+            const selection = window.getSelection();
+            if (selection.rangeCount > 0) {
+                const range = selection.getRangeAt(0);
+                if (richEditor.contains(range.commonAncestorContainer)) {
+                    if (!range.collapsed) {
+                        savedRange = range.cloneRange();
+                    } else if (!isClickingOutside) {
+                        savedRange = range.cloneRange();
+                    }
+                }
+            }
+        }
+
+        // 에디터 포커싱 시 선택 영역 갱신
+        richEditor.addEventListener('keyup', saveSelection);
+        richEditor.addEventListener('mouseup', saveSelection);
+        richEditor.addEventListener('focus', saveSelection);
+        document.addEventListener('selectionchange', () => {
+            if (document.activeElement === richEditor || richEditor.contains(document.activeElement)) {
+                saveSelection();
+            }
+        });
+
+        function getActiveRange() {
+            const selection = window.getSelection();
+            if (selection.rangeCount > 0) {
+                const range = selection.getRangeAt(0);
+                if (richEditor.contains(range.commonAncestorContainer) && !range.collapsed) {
+                    return range;
+                }
+            }
+            return savedRange;
+        }
+
+        function restoreSelection(range) {
+            if (range) {
+                const selection = window.getSelection();
+                selection.removeAllRanges();
+                selection.addRange(range);
+            }
+        }
+
+        // 공통: 선택 영역 스타일링 적용 함수
+        function applyStyleToSelection(styles) {
+            const range = getActiveRange();
+            if (!range || range.collapsed) {
+                return;
+            }
+            
+            restoreSelection(range);
+
+            let targetSpan = null;
+            
+            // 1. 선택 영역의 공통 조상이 SPAN이고, 그 SPAN의 전체 텍스트와 드래그 텍스트가 일치한다면 해당 SPAN을 직접 재사용
+            let ancestor = range.commonAncestorContainer;
+            if (ancestor.nodeType === Node.TEXT_NODE) {
+                ancestor = ancestor.parentNode;
+            }
+            if (ancestor && ancestor.tagName === 'SPAN' && ancestor !== richEditor) {
+                if (ancestor.textContent === range.toString()) {
+                    targetSpan = ancestor;
+                }
+            }
+
+            // 2. 단일 텍스트 노드인 경우 기존 로직도 보조적으로 수행
+            if (!targetSpan) {
+                const container = range.commonAncestorContainer;
+                if (container.nodeType === Node.TEXT_NODE) {
+                    const parent = container.parentNode;
+                    if (parent && parent.tagName === 'SPAN' && parent !== richEditor) {
+                        if (range.startOffset === 0 && range.endOffset === container.length) {
+                            targetSpan = parent;
+                        }
+                    }
+                }
+            }
+
+            if (targetSpan) {
+                // 자식 span 요소들 중 동일 스타일 속성 비워서 중첩/누적 방지
+                const childSpans = targetSpan.getElementsByTagName('span');
+                for (let i = childSpans.length - 1; i >= 0; i--) {
+                    const child = childSpans[i];
+                    for (const key of Object.keys(styles)) {
+                        child.style[key] = '';
+                        if (key === 'backgroundColor') {
+                            child.style.padding = '';
+                            child.style.borderRadius = '';
+                            child.style.display = '';
+                        }
+                    }
+                    // 남은 스타일이 없으면 태그 자체를 해제
+                    if (!child.style.color && !child.style.fontWeight && !child.style.fontSize && !child.style.backgroundColor && !child.style.textAlign) {
+                        const p = child.parentNode;
+                        while (child.firstChild) {
+                            p.insertBefore(child.firstChild, child);
+                        }
+                        p.removeChild(child);
+                    }
+                }
+
+                // 스타일 적용
+                for (const [key, val] of Object.entries(styles)) {
+                    targetSpan.style[key] = val;
+                }
+            } else {
+                const span = document.createElement('span');
+                for (const [key, val] of Object.entries(styles)) {
+                    span.style[key] = val;
+                }
+                
+                try {
+                    range.surroundContents(span);
+                } catch (e) {
+                    const contents = range.extractContents();
+                    span.appendChild(contents);
+                    range.insertNode(span);
+                }
+
+                // 새로 만든 span 내부의 자식 span들도 스타일을 비워서 누적 방지
+                const childSpans = span.getElementsByTagName('span');
+                for (let i = childSpans.length - 1; i >= 0; i--) {
+                    const child = childSpans[i];
+                    for (const key of Object.keys(styles)) {
+                        child.style[key] = '';
+                        if (key === 'backgroundColor') {
+                            child.style.padding = '';
+                            child.style.borderRadius = '';
+                            child.style.display = '';
+                        }
+                    }
+                    if (!child.style.color && !child.style.fontWeight && !child.style.fontSize && !child.style.backgroundColor && !child.style.textAlign) {
+                        const p = child.parentNode;
+                        while (child.firstChild) {
+                            p.insertBefore(child.firstChild, child);
+                        }
+                        p.removeChild(child);
+                    }
+                }
+            }
+            
+            saveSelection();
+            updatePreview();
+        }
+
+        // 텍스트 글자색 변경 연동
+        textColorPicker.addEventListener('input', (e) => {
+            const rgb = hexToRgb(e.target.value);
+            if (rgb) {
+                textR.value = rgb.r;
+                textG.value = rgb.g;
+                textB.value = rgb.b;
+            }
+            applyStyleToSelection({ color: e.target.value });
+        });
+
+        function syncTextRgbToPicker() {
+            const r = Math.max(0, Math.min(255, parseInt(textR.value) || 0));
+            const g = Math.max(0, Math.min(255, parseInt(textG.value) || 0));
+            const b = Math.max(0, Math.min(255, parseInt(textB.value) || 0));
+            textR.value = r; textG.value = g; textB.value = b;
+            const hex = rgbToHex(r, g, b);
+            textColorPicker.value = hex;
+            return hex;
+        }
+
+        [textR, textG, textB].forEach(input => {
+            input.addEventListener('input', () => {
+                const hex = syncTextRgbToPicker();
+                applyStyleToSelection({ color: hex });
+            });
+        });
+
+        document.getElementById('btn-text-rgb-apply').addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            const hex = syncTextRgbToPicker();
+            applyStyleToSelection({ color: hex });
+        });
+
+        // 🖍️ 형광펜 변경 연동
+        hlColorPicker.addEventListener('input', (e) => {
+            const rgb = hexToRgb(e.target.value);
+            if (rgb) {
+                hlR.value = rgb.r;
+                hlG.value = rgb.g;
+                hlB.value = rgb.b;
+            }
+            applyHighlighter(e.target.value);
+        });
+
+        function syncHlRgbToPicker() {
+            const r = Math.max(0, Math.min(255, parseInt(hlR.value) || 0));
+            const g = Math.max(0, Math.min(255, parseInt(hlG.value) || 0));
+            const b = Math.max(0, Math.min(255, parseInt(hlB.value) || 0));
+            hlR.value = r; hlG.value = g; hlB.value = b;
+            const hex = rgbToHex(r, g, b);
+            hlColorPicker.value = hex;
+            return hex;
+        }
+
+        [hlR, hlG, hlB].forEach(input => {
+            input.addEventListener('input', () => {
+                const hex = syncHlRgbToPicker();
+                applyHighlighter(hex);
+            });
+        });
+
+        document.getElementById('btn-hl-apply').addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            const hex = syncHlRgbToPicker();
+            applyHighlighter(hex);
+        });
+
+        // [피드백 해결] 형광펜 지우기 버튼의 완벽한 돔 제거 렌더러 구현
+        document.getElementById('btn-hl-clear').addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            removeHighlighterFromSelection();
+        });
+
+        function applyHighlighter(colorHex) {
+            const translucentColor = colorHex + '55'; // 35% 투명도
+            applyStyleToSelection({
+                backgroundColor: translucentColor,
+                padding: '2px 6px',
+                borderRadius: '6px',
+                display: 'inline'
+            });
+        }
+
+        // 형광펜 제거용 돔 트래버설 함수 (커서 위치 기반 및 다중 태그 언랩핑 대응)
+        function removeHighlighterFromSelection() {
+            const range = getActiveRange();
+            if (!range) {
+                richEditor.focus();
+                return;
+            }
+            
+            restoreSelection(range);
+            
+            const highlightSpans = [];
+            
+            if (range.collapsed) {
+                // 커서만 깜빡이는 상태일 때: 커서 위치 상위 부모 중 형광펜 span 탐색
+                let parent = range.commonAncestorContainer;
+                while (parent && parent !== richEditor) {
+                    if (parent.nodeType === Node.ELEMENT_NODE && parent.tagName === 'SPAN') {
+                        if (parent.style.backgroundColor && parent.style.backgroundColor !== 'transparent') {
+                            highlightSpans.push(parent);
+                        }
+                    }
+                    parent = parent.parentNode;
+                }
+            } else {
+                // 텍스트 블록 지정 상태일 때: 시작점/끝점 상위 span 탐색
+                let parentStart = range.startContainer;
+                while (parentStart && parentStart !== richEditor) {
+                    if (parentStart.nodeType === Node.ELEMENT_NODE && parentStart.tagName === 'SPAN') {
+                        if (parentStart.style.backgroundColor && parentStart.style.backgroundColor !== 'transparent') {
+                            if (!highlightSpans.includes(parentStart)) highlightSpans.push(parentStart);
+                        }
+                    }
+                    parentStart = parentStart.parentNode;
+                }
+                
+                let parentEnd = range.endContainer;
+                while (parentEnd && parentEnd !== richEditor) {
+                    if (parentEnd.nodeType === Node.ELEMENT_NODE && parentEnd.tagName === 'SPAN') {
+                        if (parentEnd.style.backgroundColor && parentEnd.style.backgroundColor !== 'transparent') {
+                            if (!highlightSpans.includes(parentEnd)) highlightSpans.push(parentEnd);
+                        }
+                    }
+                    parentEnd = parentEnd.parentNode;
+                }
+                
+                // 선택 범위에 완전히/일부 걸쳐있는 모든 span들 교차 검사
+                const allSpans = richEditor.getElementsByTagName('span');
+                for (let i = 0; i < allSpans.length; i++) {
+                    const span = allSpans[i];
+                    if (range.intersectsNode(span)) {
+                        if (span.style.backgroundColor && span.style.backgroundColor !== 'transparent') {
+                            if (!highlightSpans.includes(span)) {
+                                highlightSpans.push(span);
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // 수집된 span들에서 형광펜 스타일 제거
+            highlightSpans.forEach(span => {
+                span.style.backgroundColor = '';
+                span.style.padding = '';
+                span.style.borderRadius = '';
+                span.style.display = '';
+                
+                // 만약 굵기, 색상 등 형광펜 외의 다른 서식이 전혀 남아있지 않다면 span 태그 자체를 완전 제거
+                if (!span.style.color && !span.style.fontWeight && !span.style.fontSize && !span.style.textAlign) {
+                    const parentNode = span.parentNode;
+                    while (span.firstChild) {
+                        parentNode.insertBefore(span.firstChild, span);
+                    }
+                    parentNode.removeChild(span);
+                }
+            });
+            
+            saveSelection();
+            updatePreview();
+        }
+
+        // 폰트 두께 조절 이벤트
+        document.getElementById('btn-weight-thin').addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            applyStyleToSelection({ fontWeight: '300' });
+            setActiveWeightBtn('btn-weight-thin');
+        });
+        document.getElementById('btn-weight-normal').addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            applyStyleToSelection({ fontWeight: '400' });
+            setActiveWeightBtn('btn-weight-normal');
+        });
+        document.getElementById('btn-weight-bold').addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            applyStyleToSelection({ fontWeight: '700' });
+            setActiveWeightBtn('btn-weight-bold');
+        });
+        document.getElementById('btn-weight-black').addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            applyStyleToSelection({ fontWeight: '900' });
+            setActiveWeightBtn('btn-weight-black');
+        });
+
+        function setActiveWeightBtn(activeId) {
+            ['btn-weight-thin', 'btn-weight-normal', 'btn-weight-bold', 'btn-weight-black'].forEach(id => {
+                document.getElementById(id).classList.toggle('active', id === activeId);
+            });
+        }
+
+        // 정렬 연동
+        document.getElementById('btn-align-left').addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            previewText.style.textAlign = 'left';
+            phoneTextEl.style.textAlign = 'left';
+            updateAlignBtns('btn-align-left');
+        });
+        document.getElementById('btn-align-center').addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            previewText.style.textAlign = 'center';
+            phoneTextEl.style.textAlign = 'center';
+            updateAlignBtns('btn-align-center');
+        });
+        document.getElementById('btn-align-right').addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            previewText.style.textAlign = 'right';
+            phoneTextEl.style.textAlign = 'right';
+            updateAlignBtns('btn-align-right');
+        });
+
+        function updateAlignBtns(activeId) {
+            ['btn-align-left', 'btn-align-center', 'btn-align-right'].forEach(id => {
+                document.getElementById(id).classList.toggle('active', id === activeId);
+            });
+        }
+
+        // 별점 스타일 및 색상 업데이트
+        starColorPicker.addEventListener('input', (e) => {
+            const rgb = hexToRgb(e.target.value);
+            if (rgb) {
+                starR.value = rgb.r;
+                starG.value = rgb.g;
+                starB.value = rgb.b;
+            }
+            updatePreview();
+        });
+
+        function syncStarRgbToPicker() {
+            const r = Math.max(0, Math.min(255, parseInt(starR.value) || 0));
+            const g = Math.max(0, Math.min(255, parseInt(starG.value) || 0));
+            const b = Math.max(0, Math.min(255, parseInt(starB.value) || 0));
+            starR.value = r;
+            starG.value = g;
+            starB.value = b;
+            starColorPicker.value = rgbToHex(r, g, b);
+            updatePreview();
+        }
+
+        [starR, starG, starB].forEach(input => {
+            input.addEventListener('input', syncStarRgbToPicker);
+        });
+
+        starSizeSlider.addEventListener('input', (e) => {
+            starSizeVal.textContent = e.target.value + 'px';
+            updatePreview();
+        });
+
+        // 이름 마스킹 처리 및 이니셜 노출
+        function processName(fullName) {
+            if (!fullName) {
+                previewName.textContent = "";
+                phoneNameEl.textContent = "";
+                previewAvatar.textContent = "👤";
+                phoneAvatarEl.textContent = "👤";
+                return;
+            }
+            const familyName = fullName.trim().charAt(0);
+            const masked = `(${familyName}**)`;
+            
+            previewName.textContent = masked;
+            phoneNameEl.textContent = masked;
+            
+            previewAvatar.textContent = familyName;
+            phoneAvatarEl.textContent = familyName;
+        }
+
+        // 별점 그리기 함수
+        function renderStars(rating) {
+            previewStars.innerHTML = '';
+            phoneStarsEl.innerHTML = '';
+            
+            const activeColor = starColorPicker.value;
+            const starSize = starSizeSlider.value;
+            
+            for (let i = 1; i <= 5; i++) {
+                const isFilled = i <= rating;
+                const starSvg = `
+                    <svg class="star-icon ${isFilled ? 'filled' : ''}" style="width: ${starSize}px; height: ${starSize}px; fill: ${isFilled ? activeColor : '#334155'}; filter: ${isFilled ? 'drop-shadow(0 0 3px ' + activeColor + '88)' : 'none'};" viewBox="0 0 24 24">
+                        <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
+                    </svg>
+                `;
+                previewStars.innerHTML += starSvg;
+                phoneStarsEl.innerHTML += starSvg;
+            }
+        }
+
+        // 프리뷰 갱신
+        function updatePreview() {
+            previewText.innerHTML = richEditor.innerHTML;
+            phoneTextEl.innerHTML = richEditor.innerHTML;
+            
+            processName(studentNameInput.value);
+            renderStars(currentRating);
+        }
+
+        // 실시간 입력 연동
+        richEditor.addEventListener('input', updatePreview);
+        studentNameInput.addEventListener('input', updatePreview);
+
+        // 별점 클릭 셀렉터
+        starPicker.addEventListener('click', (e) => {
+            if (e.target.classList.contains('star-picker-item')) {
+                const rating = parseInt(e.target.dataset.rating);
+                currentRating = rating;
+                
+                const stars = starPicker.querySelectorAll('.star-picker-item');
+                stars.forEach(s => {
+                    const r = parseInt(s.dataset.rating);
+                    s.classList.toggle('active', r <= rating);
+                });
+                
+                updatePreview();
+            }
+        });
+
+        fontSizeSlider.addEventListener('input', (e) => {
+            const size = e.target.value;
+            fontSizeVal.textContent = size + 'px';
+            previewText.style.fontSize = size + 'px';
+            phoneTextEl.style.fontSize = Math.max(16, size - 4) + 'px';
+        });
+
+        // ⚙️ [피드백 반영] 화면 갱신 버튼 클릭 시 강제 새로고침(reload)으로 변경
+        document.getElementById('btn-apply').addEventListener('click', () => {
+            location.reload();
+        });
+
+        // ==========================================
+        // [피드백 핵심] 각 배경테마별 실시간 컬러 수동 연동
+        // ==========================================
+        function applyColorsToTheme() {
+            const c1 = gradC1.value;
+            const c2 = gradC2.value;
+            const c3 = gradC3.value;
+            const angle = gradAngle.value;
+            
+            const glows = glowContainer.querySelectorAll('.bg-glow');
+
+            if (currentTheme === 'grainy') {
+                cardViewport.style.background = c3;
+                glows[0].style.background = `radial-gradient(circle, ${c1} 0%, ${c1}00 70%)`;
+                glows[1].style.background = `radial-gradient(circle, ${c2} 0%, ${c2}00 70%)`;
+            } 
+            else if (currentTheme === 'halftone') {
+                cardViewport.style.background = c1;
+                updateHalftonePattern();
+            } 
+            else if (currentTheme === 'lightleak') {
+                cardViewport.style.background = c1;
+                overlays.lightleak.style.background = `
+                    radial-gradient(circle at 85% 45%, ${c2} 0%, ${c2}77 35%, transparent 70%),
+                    radial-gradient(circle at 100% 60%, ${c3} 0%, ${c3}00 55%),
+                    radial-gradient(circle at 20% 80%, rgba(14, 165, 233, 0.3) 0%, transparent 60%)
+                `;
+            }
+            else if (currentTheme === 'fractalglass') {
+                cardViewport.style.background = `linear-gradient(${angle}deg, ${c1} 0%, ${c2} 50%, ${c3} 100%)`;
+            }
+            else if (currentTheme === 'cardboard') {
+                cardViewport.style.background = c1;
+                overlays.cardboard.style.background = `
+                    linear-gradient(135deg, ${c2}22 0%, ${c3}1a 50%, ${c2}11 100%),
+                    linear-gradient(45deg, ${c3}0a 0%, ${c2}1c 75%, ${c3}0a 100%)
+                `;
+                const card = document.getElementById('card-box');
+                card.style.borderColor = c3 + '77';
+                card.style.color = c3;
+            }
+            else if (currentTheme === 'plasticwrap') {
+                cardViewport.style.background = `linear-gradient(${angle}deg, ${c1} 0%, ${c2} 100%)`;
+                overlays.plasticwrap.style.background = `
+                    linear-gradient(115deg, ${c3}40 0%, ${c3}00 25%, ${c3}30 42%, ${c3}00 65%, ${c3}38 80%, ${c3}00 100%),
+                    linear-gradient(215deg, ${c3}24 0%, ${c3}00 35%, ${c3}30 55%, ${c3}00 75%, ${c3}20 100%)
+                `;
+            }
+            else if (currentTheme === 'mobile') {
+                cardViewport.style.background = `linear-gradient(${angle}deg, ${c1} 0%, ${c2} 100%)`;
+                
+                const avatarEl = document.getElementById('phone-avatar-el');
+                const userTagEl = document.querySelector('.phone-user-tag');
+                const headerBackEl = document.querySelector('.phone-app-header .header-back');
+                
+                avatarEl.style.background = `linear-gradient(135deg, ${c3}, ${c3}aa)`;
+                userTagEl.style.color = c3;
+                headerBackEl.style.color = c3;
+            }
+            else if (currentTheme === 'custom') {
+                cardViewport.style.background = `linear-gradient(${angle}deg, ${c1} 0%, ${c2} 50%, ${c3} 100%)`;
+            }
+        }
+
+        // 각 테마를 클릭했을 때 기본 레이아웃 구성 및 컬러 빌더 라벨/기본값 갱신
+        function updateBackgroundTheme() {
+            // 모든 텍스처 오버레이 끄기
+            Object.values(overlays).forEach(ol => {
+                ol.style.display = 'none';
+                ol.style.filter = '';
+            });
+            cardViewport.style.filter = '';
+            glowContainer.style.display = 'none';
+            phoneFrame.style.display = 'none';
+            
+            // Bento 카드 기본 원복
+            cardBox.className = 'review-card';
+            cardBox.style.display = 'flex';
+            cardBox.style.borderColor = '';
+            cardBox.style.color = '';
+            
+            document.querySelectorAll('.quote-icon').forEach(qi => qi.style.display = 'block');
+
+            const builderTitle = document.getElementById('builder-title');
+            const lblC1 = document.getElementById('lbl-c1');
+            const lblC2 = document.getElementById('lbl-c2');
+            const lblC3 = document.getElementById('lbl-c3');
+            const lblAngle = document.getElementById('lbl-angle');
+            
+            const rowC1 = document.getElementById('row-c1');
+            const rowC2 = document.getElementById('row-c2');
+            const rowC3 = document.getElementById('row-c3');
+            const rowAngle = document.getElementById('row-angle');
+            
+            // 제어 라인 모두 활성화 기본 세팅
+            rowC1.style.display = 'flex';
+            rowC2.style.display = 'flex';
+            rowC3.style.display = 'flex';
+            rowAngle.style.display = 'flex';
+            
+            // 하프톤 패널 숨김 및 기본값 리셋
+            const htPanel = document.getElementById('halftone-custom-panel');
+            if (htPanel) {
+                htPanel.style.display = 'none';
+                document.getElementById('ht-center-x').value = 50;
+                document.getElementById('ht-center-x-val').textContent = '50%';
+                document.getElementById('ht-center-y').value = 50;
+                document.getElementById('ht-center-y-val').textContent = '50%';
+                document.getElementById('ht-spacing').value = 24;
+                document.getElementById('ht-spacing-val').textContent = '24px';
+                document.getElementById('ht-density').value = 5;
+                document.getElementById('ht-density-val').textContent = '0.5';
+            }
+            
+            builderTitle.textContent = `배경 테마 상세 색상 조절`;
+
+            if (currentTheme === 'grainy') {
+                lblC1.textContent = '빛 구체 1 (Pink)';
+                lblC2.textContent = '빛 구체 2 (Indigo)';
+                lblC3.textContent = '베이스 어두운 배경';
+                rowAngle.style.display = 'none';
+                
+                overlays.grainy.style.display = 'block';
+                glowContainer.style.display = 'block';
+                
+                setThemePresetColors('#e8a7ec', '#3f5efb', '#090e1a');
+            } 
+            else if (currentTheme === 'halftone') {
+                lblC1.textContent = '백그라운드 색상';
+                lblC2.textContent = '망점 도트 색상';
+                rowC3.style.display = 'none';
+                lblAngle.textContent = '망점 회전 각도';
+                
+                overlays.halftone.style.display = 'block';
+                if (htPanel) htPanel.style.display = 'flex';
+                
+                setThemePresetColors('#020202', '#ffffff', '#000000', 45);
+            } 
+            else if (currentTheme === 'lightleak') {
+                lblC1.textContent = '베이스 배경색';
+                lblC2.textContent = '누출 광원색 1';
+                lblC3.textContent = '누출 광원색 2';
+                rowAngle.style.display = 'none';
+                
+                overlays.lightleak.style.display = 'block';
+                
+                setThemePresetColors('#0a141b', '#ff4500', '#facc15');
+            }
+            else if (currentTheme === 'fractalglass') {
+                lblC1.textContent = '글래스 반사색 1';
+                lblC2.textContent = '글래스 반사색 2';
+                lblC3.textContent = '글래스 반사색 3';
+                lblAngle.textContent = '그라디언트 각도';
+                
+                overlays.fractalglass.style.display = 'block';
+                
+                setThemePresetColors('#a5b4fc', '#fbcfe8', '#fef08a', 135);
+            }
+            else if (currentTheme === 'cardboard') {
+                lblC1.textContent = '판지 상자 색상';
+                lblC2.textContent = '구김 밝은 반사색';
+                lblC3.textContent = '구김 어두운 음영색';
+                rowAngle.style.display = 'none';
+                
+                overlays.cardboard.style.display = 'block';
+                overlays.cardboard.style.filter = 'url(#cardboard-filter)';
+                cardBox.className = 'review-card card-cardboard-style';
+                
+                setThemePresetColors('#cca87a', '#ffffff', '#4a3622');
+            }
+            else if (currentTheme === 'plasticwrap') {
+                lblC1.textContent = '배경 톤 색상 1';
+                lblC2.textContent = '배경 톤 색상 2';
+                lblC3.textContent = '비닐 비침 반사색';
+                lblAngle.textContent = '배경 그라디언트 각도';
+                
+                overlays.plasticwrap.style.display = 'block';
+                overlays.plasticwrap.style.filter = 'url(#plastic-filter)';
+                glowContainer.style.display = 'block';
+                
+                setThemePresetColors('#100f24', '#03040c', '#ffffff', 135);
+            }
+            else if (currentTheme === 'mobile') {
+                lblC1.textContent = '외부 배경 그라디언트 1';
+                lblC2.textContent = '외부 배경 그라디언트 2';
+                lblC3.textContent = '어플 포인트 강조색';
+                lblAngle.textContent = '외부 배경 각도';
+                
+                cardBox.style.display = 'none';
+                document.querySelectorAll('.quote-icon').forEach(qi => qi.style.display = 'none');
+                
+                phoneFrame.style.display = 'flex';
+                updateMockupClock();
+                glowContainer.style.display = 'block';
+                
+                setThemePresetColors('#05070f', '#110e24', '#6366f1', 135);
+            }
+            else if (currentTheme === 'custom') {
+                lblC1.textContent = '배경 그라디언트 1';
+                lblC2.textContent = '배경 그라디언트 2';
+                lblC3.textContent = '배경 그라디언트 3';
+                lblAngle.textContent = '그라디언트 각도';
+                
+                setThemePresetColors('#0f172a', '#1e1b4b', '#020617', 135);
+            }
+
+            // 색상 조절 호출
+            applyColorsToTheme();
+        }
+
+        // 하프톤 전용 망점 커스터마이징 슬라이더 이벤트 연동
+        ['ht-center-x', 'ht-center-y', 'ht-spacing', 'ht-density'].forEach(id => {
+            const input = document.getElementById(id);
+            if (input) {
+                input.addEventListener('input', (e) => {
+                    let displayVal = e.target.value;
+                    if (id === 'ht-center-x' || id === 'ht-center-y') {
+                        displayVal += '%';
+                    } else if (id === 'ht-spacing') {
+                        displayVal += 'px';
+                    } else if (id === 'ht-density') {
+                        displayVal = (displayVal / 10).toFixed(1);
+                    }
+                    document.getElementById(id + '-val').textContent = displayVal;
+                    applyColorsToTheme();
+                });
+            }
+        });
+
+        function updateHalftonePattern() {
+            if (currentTheme !== 'halftone') return;
+
+            const c2 = gradC2.value; // Dot color
+            const angle = gradAngle.value;
+            
+            const vpW = cardViewport.offsetWidth || 1080;
+            const vpH = cardViewport.offsetHeight || 1080;
+            
+            const width = vpW * 2;
+            const height = vpH * 2;
+            
+            // Get slider values
+            const htx = parseInt(document.getElementById('ht-center-x').value) / 100;
+            const hty = parseInt(document.getElementById('ht-center-y').value) / 100;
+            const spacing = parseInt(document.getElementById('ht-spacing').value);
+            const densityVal = parseInt(document.getElementById('ht-density').value) / 10; // e.g. 0.0 to 2.0
+            
+            // Center coordinates in SVG space
+            const cx = width * (htx * 0.5 + 0.25);
+            const cy = height * (hty * 0.5 + 0.25);
+            
+            const maxRadius = spacing * 0.45; // Dot radius shouldn't overlap on regular grid
+            const minRadius = 1.0;
+            
+            const maxDist = Math.sqrt(width * width + height * height) * 0.5; // distance from center to corner
+            
+            let svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">`;
+            
+            const cols = Math.ceil(width / spacing) + 2;
+            const rows = Math.ceil(height / spacing) + 2;
+            
+            for (let c = -1; c < cols; c++) {
+                for (let r = -1; r < rows; r++) {
+                    const x0 = c * spacing;
+                    const y0 = r * spacing;
+                    
+                    const dx = x0 - cx;
+                    const dy = y0 - cy;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    
+                    let normDist = dist / maxDist;
+                    if (normDist > 1) normDist = 1;
+                    
+                    let x = x0;
+                    let y = y0;
+                    
+                    // Apply grid coordinate distortion to pinch/concentrate dots
+                    if (densityVal > 0 && dist > 0) {
+                        // Pull points closer to center
+                        const factor = Math.pow(normDist, densityVal);
+                        x = cx + dx * factor;
+                        y = cy + dy * factor;
+                    }
+                    
+                    // Dot size variation: larger near center, smaller further away
+                    let radius = maxRadius - (maxRadius - minRadius) * normDist;
+                    if (radius < minRadius) radius = minRadius;
+                    
+                    svgContent += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${radius.toFixed(1)}" fill="${c2}" />`;
+                }
+            }
+            
+            svgContent += `</svg>`;
+            
+            // Set as background image
+            const dataUrl = 'data:image/svg+xml;utf8,' + encodeURIComponent(svgContent);
+            overlays.halftone.style.backgroundImage = `url("${dataUrl}")`;
+            overlays.halftone.style.transform = `rotate(${angle}deg)`;
+        }
+
+        // 테마 선택 시 색상 슬라이더와 매핑 변수를 갱신
+        function setThemePresetColors(c1, c2, c3, angleVal = null) {
+            gradC1.value = c1;
+            updateRGBInputs('grad-c1', c1);
+            
+            gradC2.value = c2;
+            updateRGBInputs('grad-c2', c2);
+            
+            gradC3.value = c3;
+            updateRGBInputs('grad-c3', c3);
+            
+            if (angleVal !== null) {
+                gradAngle.value = angleVal;
+                gradAngleVal.textContent = angleVal + '°';
+            }
+        }
+
+        // 그라디언트 색상 조절 입력 이벤트리스너 연동
+        function setupColorRgbSync(pickerId, rId, gId, bId) {
+            const picker = document.getElementById(pickerId);
+            const r = document.getElementById(rId);
+            const g = document.getElementById(gId);
+            const b = document.getElementById(bId);
+
+            picker.addEventListener('input', (e) => {
+                const rgb = hexToRgb(e.target.value);
+                if (rgb) {
+                    r.value = rgb.r;
+                    g.value = rgb.g;
+                    b.value = rgb.b;
+                }
+                applyColorsToTheme();
+            });
+
+            [r, g, b].forEach(input => {
+                input.addEventListener('input', () => {
+                    const rv = Math.max(0, Math.min(255, parseInt(r.value) || 0));
+                    const gv = Math.max(0, Math.min(255, parseInt(g.value) || 0));
+                    const bv = Math.max(0, Math.min(255, parseInt(b.value) || 0));
+                    r.value = rv; g.value = gv; b.value = bv;
+                    picker.value = rgbToHex(rv, gv, bv);
+                    applyColorsToTheme();
+                });
+            });
+        }
+
+        setupColorRgbSync('grad-c1', 'grad-c1-r', 'grad-c1-g', 'grad-c1-b');
+        setupColorRgbSync('grad-c2', 'grad-c2-r', 'grad-c2-g', 'grad-c2-b');
+        setupColorRgbSync('grad-c3', 'grad-c3-r', 'grad-c3-g', 'grad-c3-b');
+
+        gradAngle.addEventListener('input', (e) => {
+            gradAngleVal.textContent = e.target.value + '°';
+            applyColorsToTheme();
+        });
+
+        // 테마 변경 버튼 이벤트리스너
+        document.querySelectorAll('.theme-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                currentTheme = e.target.dataset.theme;
+                updateBackgroundTheme();
+            });
+        });
+
+        // ==========================================
+        // 뷰포트 크기 및 해상도 비율별 설정
+        // ==========================================
+        function resizeViewport() {
+            const containerW = previewContainer.clientWidth;
+            const containerH = previewContainer.clientHeight;
+            
+            let nativeW = 1080;
+            let nativeH = 1080;
+            
+            if (currentRatio === '16-9') {
+                nativeW = 1920;
+                nativeH = 1080;
+                previewAspectText.textContent = '16:9 비율 (1920x1080)';
+            } else if (currentRatio === '9-16') {
+                nativeW = 1080;
+                nativeH = 1920;
+                previewAspectText.textContent = '9:16 비율 (1080x1920)';
+            } else {
+                previewAspectText.textContent = '1:1 비율 (1080x1080)';
+            }
+            
+            cardViewport.style.width = nativeW + 'px';
+            cardViewport.style.height = nativeH + 'px';
+            cardViewport.setAttribute('data-ratio', currentRatio);
+            
+            // 화면 뷰포트에 꽉맞춤 스케일링
+            const scaleX = containerW / nativeW;
+            const scaleY = containerH / nativeH;
+            const scale = Math.min(scaleX, scaleY) * 0.92;
+            
+            cardViewport.style.transform = `scale(${scale})`;
+        }
+
+        document.querySelectorAll('.ratio-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.ratio-btn').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                currentRatio = e.target.dataset.ratio;
+                resizeViewport();
+            });
+        });
+
+        window.addEventListener('resize', resizeViewport);
+
+        // ==========================================
+        // [피드백 해결] 무작위 테마/색상/문구/정렬 예시 생성
+        // ==========================================
+        document.getElementById('btn-example').addEventListener('click', () => {
+            const examples = [
+                {
+                    name: '김도윤',
+                    rating: 5,
+                    fontSize: 32,
+                    text: '매주 주어지는 프로젝트 과제 덕분에 <span style="font-weight: 700; color: #a855f7;">포트폴리오 퀄리티가 수직 상승</span>했습니다. 현업 기획자의 <span style="font-weight: 900; background-color: rgba(250, 204, 21, 0.35); padding: 2px 6px; border-radius: 6px; display: inline;">1:1 초밀착 맞춤 피드백</span>은 이 수업의 최고 강점입니다!'
+                },
+                {
+                    name: '이서아',
+                    rating: 5,
+                    fontSize: 30,
+                    text: '비전공자라 코딩에 두려움이 엄청 많았는데, <span style="font-weight: 700; color: #10b981;">이 수업을 들은 것은 제 인생 최대의 터닝포인트</span>였습니다. 기본 원리부터 하나씩 씹어 삼키듯이 알려주세요!'
+                },
+                {
+                    name: '박시우',
+                    rating: 5,
+                    fontSize: 34,
+                    text: '프론트엔드 실무 중심 커리큘럼이 너무 유익했습니다. 덕분에 원하던 스타트업에 <span style="font-weight: 900; color: #6366f1;">바로 주니어 개발자로 합격</span>하여 출근을 앞두고 있습니다 🌈'
+                },
+                {
+                    name: '최지아',
+                    rating: 4,
+                    fontSize: 31,
+                    text: '이론만 배우는 게 아니라 <span style="font-weight: 700; color: #ec4899;">실제 배포까지 완료하는 전 과정</span>을 경험해 볼 수 있어서 좋았습니다. 강사님의 열정적인 강의 최고예요!'
+                },
+                {
+                    name: '정민우',
+                    rating: 5,
+                    fontSize: 33,
+                    text: '매 수업 시간마다 감탄했습니다. 실무에서 바로 쓸 수 있는 <span style="font-weight: 700; background-color: rgba(14, 165, 233, 0.3); padding: 2px 6px; border-radius: 6px; display: inline;">핵심 꿀팁들과 아키텍처 노하우</span>들을 아낌없이 다 퍼주십니다.'
+                }
+            ];
+
+            const themes = ['grainy', 'halftone', 'lightleak', 'fractalglass', 'cardboard', 'plasticwrap', 'mobile', 'custom'];
+            const randomTheme = themes[Math.floor(Math.random() * themes.length)];
+            
+            const palettes = [
+                { c1: '#e8a7ec', c2: '#3f5efb', c3: '#090e1a' },
+                { c1: '#fa709a', c2: '#fee140', c3: '#1a0d14' },
+                { c1: '#845ec2', c2: '#d65db1', c3: '#ff6f91' },
+                { c1: '#00c6ff', c2: '#0072ff', c3: '#040714' },
+                { c1: '#11998e', c2: '#38ef7d', c3: '#06130e' },
+                { c1: '#cca87a', c2: '#ffffff', c3: '#4a3622' },
+                { c1: '#fbc2eb', c2: '#a6c1ee', c3: '#0a0d16' },
+                { c1: '#ff9a9e', c2: '#fecfef', c3: '#1f131a' }
+            ];
+            const randomPalette = palettes[Math.floor(Math.random() * palettes.length)];
+            const randomAngle = Math.floor(Math.random() * 36) * 10;
+            
+            const randomEx = examples[Math.floor(Math.random() * examples.length)];
+            
+            // 1. 값 반영
+            studentNameInput.value = randomEx.name;
+            currentRating = randomEx.rating;
+            fontSizeSlider.value = randomEx.fontSize;
+            fontSizeVal.textContent = randomEx.fontSize + 'px';
+            previewText.style.fontSize = randomEx.fontSize + 'px';
+            phoneTextEl.style.fontSize = Math.max(16, randomEx.fontSize - 4) + 'px';
+            
+            // 별점 UI 업데이트
+            const stars = starPicker.querySelectorAll('.star-picker-item');
+            stars.forEach(s => {
+                const r = parseInt(s.dataset.rating);
+                s.classList.toggle('active', r <= randomEx.rating);
+            });
+            
+            // 2. 테마 반영
+            currentTheme = randomTheme;
+            document.querySelectorAll('.theme-btn').forEach(b => {
+                b.classList.toggle('active', b.dataset.theme === randomTheme);
+            });
+            updateBackgroundTheme();
+            
+            // 3. 색상 반영 (테마 업데이트 후 설정해야 덮어쓰기가 됨)
+            setThemePresetColors(randomPalette.c1, randomPalette.c2, randomPalette.c3, randomAngle);
+            applyColorsToTheme();
+            
+            // 4. 에디터 텍스트 및 정렬 설정
+            const alignments = ['left', 'center'];
+            const randomAlign = alignments[Math.floor(Math.random() * alignments.length)];
+            
+            previewText.style.textAlign = randomAlign;
+            phoneTextEl.style.textAlign = randomAlign;
+            updateAlignBtns('btn-align-' + randomAlign);
+            
+            richEditor.innerHTML = randomEx.text;
+            updatePreview();
+        });
+
+        // 모바일 클락 갱신용 유틸
+        function updateMockupClock() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            phoneTime.textContent = `${hours}:${minutes}`;
+        }
+
+        // ==========================================
+        // [피드백 해결] 고화질 벡터 SVG 파일 직접 다운로드 구현
+        // ==========================================
+        function downloadSVG(isTransparent) {
+            const svgBtn = isTransparent ? document.getElementById('btn-download-trans-svg') : document.getElementById('btn-download-svg');
+            svgBtn.disabled = true;
+            svgBtn.innerHTML = isTransparent ? '⚙️ 투명 SVG 생성 중...' : '⚙️ SVG 생성 중...';
+
+            // 1. 임시 스타일 변경 및 백업
+            const originalTransform = cardViewport.style.transform;
+            const originalPosition = cardViewport.style.position;
+            const originalTop = cardViewport.style.top;
+            const originalLeft = cardViewport.style.left;
+            const originalZIndex = cardViewport.style.zIndex;
+            const originalBackground = cardViewport.style.background;
+            
+            // Backup overlays display status
+            const overlayDisplays = {};
+            Object.entries(overlays).forEach(([key, ol]) => {
+                overlayDisplays[key] = ol.style.display;
+            });
+            const originalGlowDisplay = glowContainer.style.display;
+
+            cardViewport.style.transform = 'none';
+            cardViewport.style.position = 'relative';
+
+            if (isTransparent) {
+                cardViewport.style.background = 'transparent';
+                glowContainer.style.display = 'none';
+                Object.values(overlays).forEach(ol => {
+                    ol.style.display = 'none';
+                });
+            }
+
+            const width = cardViewport.offsetWidth;
+            const height = cardViewport.offsetHeight;
+
+            // 2. 현재 웹페이지 내의 모든 CSS 스타일시트 가져와 <style> 블록에 병합 (클론 렌더용)
+            let inlineStyles = '';
+            try {
+                for (const sheet of document.styleSheets) {
+                    for (const rule of sheet.cssRules) {
+                        inlineStyles += rule.cssText + '\n';
+                    }
+                }
+            } catch (e) {
+                // 크로스오리진 스타일시트 예외 무시
+            }
+
+            // 3. 뷰포트 HTML 요소를 XML 형식으로 직렬화(Serialize)
+            const serializer = new XMLSerializer();
+            const serializedHtml = serializer.serializeToString(cardViewport);
+
+            // 즉시 원래 상태 복원
+            cardViewport.style.transform = originalTransform;
+            cardViewport.style.position = originalPosition;
+            cardViewport.style.top = originalTop;
+            cardViewport.style.left = originalLeft;
+            cardViewport.style.zIndex = originalZIndex;
+            cardViewport.style.background = originalBackground;
+            
+            Object.entries(overlays).forEach(([key, ol]) => {
+                ol.style.display = overlayDisplays[key] ? overlayDisplays[key] : 'none';
+            });
+            applyColorsToTheme();
+
+            // 4. SVG 구조체 선언 및 foreignObject 삽입
+            const svgDoc = `
+<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
+  <foreignObject width="100%" height="100%">
+    <div xmlns="http://www.w3.org/1999/xhtml">
+      <style>
+        ${inlineStyles}
+        #card-viewport { 
+            position: relative !important; 
+            transform: none !important; 
+            top: 0 !important; 
+            left: 0 !important; 
+            width: 100%25 !important; 
+            height: 100%25 !important; 
+            ${isTransparent ? 'background: transparent !important;' : ''}
+        }
+        ${isTransparent ? `
+        .bg-glow-container, .texture-grainy, .texture-halftone, .texture-lightleak, .texture-fractalglass, .texture-cardboard, .texture-plasticwrap {
+            display: none !important;
+        }
+        ` : ''}
+      </style>
+      ${serializedHtml}
+    </div>
+  </foreignObject>
+</svg>
+            `;
+
+            // 5. Blob 생성 및 파일 다운로드 실행
+            try {
+                const blob = new Blob([svgDoc], { type: 'image/svg+xml;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                const timeStamp = new Date().toISOString().slice(0,10).replace(/-/g,"");
+                const nameText = studentNameInput.value ? studentNameInput.value.trim() : "수강생";
+
+                link.download = `후기_${nameText}_${isTransparent ? '투명_' : ''}${timeStamp}.svg`;
+                link.href = url;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            } catch (err) {
+                console.error('SVG 변환 오류:', err);
+                alert('SVG 변환에 실패했습니다.');
+            } finally {
+                svgBtn.disabled = false;
+                svgBtn.innerHTML = isTransparent ? `
+                    <svg style="width: 15px; height: 15px; fill: currentColor; margin-right: 3px;" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                    투명 SVG 다운로드
+                ` : `
+                    <svg style="width: 15px; height: 15px; fill: currentColor; margin-right: 3px;" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                    SVG 다운로드
+                `;
+            }
+        }
+
+        // ==========================================
+        // 고화질 이미지 다운로드 (PNG, 투명배경 지원)
+        // ==========================================
+        function downloadPNG(isTransparent) {
+            const downloadBtn = isTransparent ? document.getElementById('btn-download-trans-png') : document.getElementById('btn-download');
+            downloadBtn.disabled = true;
+            downloadBtn.innerHTML = isTransparent ? '⚙️ 투명 PNG 생성 중...' : '⚙️ PNG 생성 중...';
+            
+            // 1. 스타일 백업
+            const originalTransform = cardViewport.style.transform;
+            const originalPosition = cardViewport.style.position;
+            const originalTop = cardViewport.style.top;
+            const originalLeft = cardViewport.style.left;
+            const originalZIndex = cardViewport.style.zIndex;
+            const originalBackground = cardViewport.style.background;
+            
+            // Backup overlays display status
+            const overlayDisplays = {};
+            Object.entries(overlays).forEach(([key, ol]) => {
+                overlayDisplays[key] = ol.style.display;
+            });
+            const originalGlowDisplay = glowContainer.style.display;
+
+            // 2. 뷰포트를 일시적으로 원래 크기(scale: 1)로 되돌리고 화면 최상단 구석에 고정 배치 (스크롤 영향 차단)
+            cardViewport.style.transform = 'none';
+            cardViewport.style.position = 'fixed';
+            cardViewport.style.top = '0';
+            cardViewport.style.left = '0';
+            cardViewport.style.zIndex = '-99999';
+
+            if (isTransparent) {
+                cardViewport.style.background = 'transparent';
+                glowContainer.style.display = 'none';
+                Object.values(overlays).forEach(ol => {
+                    ol.style.display = 'none';
+                });
+            }
+
+            const options = {
+                scale: 1, 
+                useCORS: true,
+                allowTaint: true,
+                logging: false,
+                backgroundColor: null, // Always transparent canvas, background comes from DOM unless transparent
+                width: cardViewport.offsetWidth,
+                height: cardViewport.offsetHeight,
+                scrollX: 0,
+                scrollY: 0
+            };
+
+            // 브라우저 렌더러 복원 딜레이 후 캡처
+            setTimeout(() => {
+                html2canvas(cardViewport, options).then(canvas => {
+                    // 3. 즉시 프리뷰 뷰포트 스타일 원상 복구
+                    cardViewport.style.transform = originalTransform;
+                    cardViewport.style.position = originalPosition;
+                    cardViewport.style.top = originalTop;
+                    cardViewport.style.left = originalLeft;
+                    cardViewport.style.zIndex = originalZIndex;
+                    cardViewport.style.background = originalBackground;
+                    
+                    Object.entries(overlays).forEach(([key, ol]) => {
+                        ol.style.display = overlayDisplays[key] ? overlayDisplays[key] : 'none';
+                    });
+                    glowContainer.style.display = originalGlowDisplay;
+                    applyColorsToTheme();
+                    
+                    try {
+                        const link = document.createElement('a');
+                        const timeStamp = new Date().toISOString().slice(0,10).replace(/-/g,"");
+                        const nameText = studentNameInput.value ? studentNameInput.value.trim() : "수강생";
+                        
+                        link.download = `후기_${nameText}_${isTransparent ? '투명_' : ''}${timeStamp}.png`;
+                        link.href = canvas.toDataURL('image/png');
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                    } catch (err) {
+                        console.error('다운로드 중 오류:', err);
+                        alert('이미지 저장을 실패했습니다.');
+                    } finally {
+                        downloadBtn.disabled = false;
+                        downloadBtn.innerHTML = isTransparent ? `
+                            <svg style="width: 15px; height: 15px; fill: currentColor; margin-right: 3px;" viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
+                            투명 PNG 다운로드
+                        ` : `
+                            <svg style="width: 15px; height: 15px; fill: currentColor; margin-right: 3px;" viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
+                            PNG 다운로드
+                        `;
+                    }
+                }).catch(err => {
+                    // 복구
+                    cardViewport.style.transform = originalTransform;
+                    cardViewport.style.position = originalPosition;
+                    cardViewport.style.top = originalTop;
+                    cardViewport.style.left = originalLeft;
+                    cardViewport.style.zIndex = originalZIndex;
+                    cardViewport.style.background = originalBackground;
+                    
+                    Object.entries(overlays).forEach(([key, ol]) => {
+                        ol.style.display = overlayDisplays[key] ? overlayDisplays[key] : 'none';
+                    });
+                    glowContainer.style.display = originalGlowDisplay;
+                    applyColorsToTheme();
+                    
+                    console.error('캡처 캔버스 생성 실패:', err);
+                    alert('캔버스 빌드 실패');
+                    downloadBtn.disabled = false;
+                    downloadBtn.innerHTML = isTransparent ? `
+                        <svg style="width: 15px; height: 15px; fill: currentColor; margin-right: 3px;" viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
+                        투명 PNG 다운로드
+                    ` : `
+                        <svg style="width: 15px; height: 15px; fill: currentColor; margin-right: 3px;" viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
+                        PNG 다운로드
+                    `;
+                });
+            }, 100);
+        }
+
+        // 다운로드 버튼 핸들러 설정
+        document.getElementById('btn-download').addEventListener('click', () => downloadPNG(false));
+        document.getElementById('btn-download-svg').addEventListener('click', () => downloadSVG(false));
+        document.getElementById('btn-download-trans-png').addEventListener('click', () => downloadPNG(true));
+        document.getElementById('btn-download-trans-svg').addEventListener('click', () => downloadSVG(true));
+
+        // 최초 로딩 시 설정
+        window.addEventListener('DOMContentLoaded', () => {
+            updateBackgroundTheme();
+            updatePreview();
+            setTimeout(resizeViewport, 200);
+        });
+    </script>
+</body>
+</html>
