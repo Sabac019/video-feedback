@@ -222,6 +222,12 @@ class VideoFeedbackUtils:
         secs = time % 60
         timestamp = f"{mins:02d}:{secs:02d}"
         
+        end_time = comm.get("end_time")
+        if end_time and end_time != time:
+            e_mins = end_time // 60
+            e_secs = end_time % 60
+            timestamp = f"{mins:02d}:{secs:02d} ~ {e_mins:02d}:{e_secs:02d}"
+        
         edit_key = f"edit_vid_{c_id}"
         
         col_content, col_ed, col_del = st.columns([7.5, 1.25, 1.25])
@@ -232,13 +238,25 @@ class VideoFeedbackUtils:
                 
                 # Update slider state to keep the minutes/seconds slider in sync
                 import datetime
-                secs = int(time)
-                hours = secs // 3600
-                minutes = (secs % 3600) // 60
-                seconds = secs % 60
-                hours = min(hours, 23)
-                t_obj = datetime.time(hours, minutes, seconds)
-                st.session_state[f"v_slider_{file_id}"] = t_obj
+                s_secs = int(time)
+                s_hours = s_secs // 3600
+                s_minutes = (s_secs % 3600) // 60
+                s_seconds = s_secs % 60
+                s_hours = min(s_hours, 23)
+                t_obj = datetime.time(s_hours, s_minutes, s_seconds)
+                
+                if end_time and end_time != time:
+                    e_secs = int(end_time)
+                    e_hours = e_secs // 3600
+                    e_minutes = (e_secs % 3600) // 60
+                    e_seconds = e_secs % 60
+                    e_hours = min(e_hours, 23)
+                    e_t_obj = datetime.time(e_hours, e_minutes, e_seconds)
+                    st.session_state[f"v_slider_{file_id}"] = (t_obj, e_t_obj)
+                    st.session_state[f"v_range_check_{file_id}"] = True
+                else:
+                    st.session_state[f"v_slider_{file_id}"] = t_obj
+                    st.session_state[f"v_range_check_{file_id}"] = False
                 st.rerun()
         with col_ed:
             if st.button("✎", key=f"btn_ed_vid_{c_id}", help="수정"):
@@ -306,12 +324,13 @@ class SessionStateManager:
         st.session_state.canvas_data[file_id] = [item for item in st.session_state.canvas_data.get(file_id, []) if item.get("id") != c_id]
 
     @staticmethod
-    def add_video_feedback(file_id: str, color: str, color_name: str, time: int, x: int, y: int, text: str):
+    def add_video_feedback(file_id: str, color: str, color_name: str, time: int, x: int, y: int, text: str, end_time: int = None):
         st.session_state.video_data[file_id].append({
             "id": str(uuid.uuid4())[:8],
             "color": color,
             "color_name": color_name,
             "time": time,
+            "end_time": end_time if end_time is not None else time,
             "text": text,
             "x": x,
             "y": y

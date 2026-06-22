@@ -208,7 +208,8 @@ with tab_img:
             )
             
             from streamlit_image_coordinates import streamlit_image_coordinates
-            streamlit_image_coordinates(img_with_pins, use_column_width="always", key=coords_key)
+            # Set explicit width to prevent browser scaling offset!
+            streamlit_image_coordinates(img_with_pins, width=base_img.width, key=coords_key)
 
         with col_chat:
             st.write("💬 **이미지 피드백 챗**")
@@ -321,36 +322,78 @@ with tab_vid:
             
             st.markdown("#### 🛠️ 타임라인 핀 지정 도구")
             
-            # Safe check and conversion of slider session state from integer/float to datetime.time
+            # 구간 선택 여부 체크박스
+            is_range_key = f"v_range_check_{v_id}"
+            is_range = st.checkbox("구간 선택 (시작 ~ 종료 시점 피드백)", value=False, key=is_range_key)
+            
+            # Safe check and conversion of slider session state
             slider_key = f"v_slider_{v_id}"
-            current_slider_val = st.session_state.get(slider_key, seconds_to_time(v_start_time))
-            if isinstance(current_slider_val, (int, float)):
-                current_slider_val = seconds_to_time(current_slider_val)
-                st.session_state[slider_key] = current_slider_val
-                
-            current_val = time_to_seconds(current_slider_val)
-            current_val = min(current_val, duration)
-            
-            current_time_str = f"{current_val // 60:02d}:{current_val % 60:02d}"
-            total_time_str = f"{duration // 60:02d}:{duration % 60:02d}"
-            
-            st.markdown(f"**⏳ 타임라인 위치 선택 ({current_time_str} / {total_time_str})**")
-            
             fmt = "mm:ss" if duration < 3600 else "HH:mm:ss"
             
-            target_time = st.slider(
-                "타임라인 슬라이더",
-                min_value=seconds_to_time(0),
-                max_value=seconds_to_time(duration),
-                value=seconds_to_time(v_start_time),
-                key=slider_key,
-                step=datetime.timedelta(seconds=1),
-                format=fmt,
-                label_visibility="collapsed"
-            )
-            target_seconds = time_to_seconds(target_time)
+            if is_range:
+                # Range selection mode
+                default_range = (seconds_to_time(v_start_time), seconds_to_time(min(v_start_time + 10, duration)))
+                current_slider_val = st.session_state.get(slider_key, default_range)
+                if not isinstance(current_slider_val, tuple) or len(current_slider_val) != 2:
+                    current_slider_val = default_range
+                    st.session_state[slider_key] = current_slider_val
+                
+                # Ensure the bounds are correct datetime.time types
+                start_t, end_t = current_slider_val
+                if isinstance(start_t, (int, float)):
+                    start_t = seconds_to_time(start_t)
+                if isinstance(end_t, (int, float)):
+                    end_t = seconds_to_time(end_t)
+                current_slider_val = (start_t, end_t)
+                st.session_state[slider_key] = current_slider_val
+                
+                target_time_tuple = st.slider(
+                    "타임라인 슬라이더",
+                    min_value=seconds_to_time(0),
+                    max_value=seconds_to_time(duration),
+                    value=current_slider_val,
+                    key=slider_key,
+                    step=datetime.timedelta(seconds=1),
+                    format=fmt,
+                    label_visibility="collapsed"
+                )
+                start_seconds = time_to_seconds(target_time_tuple[0])
+                end_seconds = time_to_seconds(target_time_tuple[1])
+                target_seconds = start_seconds  # Draw pins and preview at the start point
+            else:
+                # Single point selection mode
+                current_slider_val = st.session_state.get(slider_key, seconds_to_time(v_start_time))
+                if isinstance(current_slider_val, tuple):
+                    current_slider_val = current_slider_val[0]
+                if isinstance(current_slider_val, (int, float)):
+                    current_slider_val = seconds_to_time(current_slider_val)
+                st.session_state[slider_key] = current_slider_val
+                
+                target_time = st.slider(
+                    "타임라인 슬라이더",
+                    min_value=seconds_to_time(0),
+                    max_value=seconds_to_time(duration),
+                    value=current_slider_val,
+                    key=slider_key,
+                    step=datetime.timedelta(seconds=1),
+                    format=fmt,
+                    label_visibility="collapsed"
+                )
+                target_seconds = time_to_seconds(target_time)
+                start_seconds = target_seconds
+                end_seconds = target_seconds
+                
             v_min = target_seconds // 60
             v_sec = target_seconds % 60
+            
+            if is_range:
+                start_time_str = f"{start_seconds // 60:02d}:{start_seconds % 60:02d}"
+                end_time_str = f"{end_seconds // 60:02d}:{end_seconds % 60:02d}"
+                st.markdown(f"**⏳ 타임라인 위치 선택 ({start_time_str} ~ {end_time_str} / {duration // 60:02d}:{duration % 60:02d})**")
+            else:
+                current_time_str = f"{target_seconds // 60:02d}:{target_seconds % 60:02d}"
+                total_time_str = f"{duration // 60:02d}:{duration % 60:02d}"
+                st.markdown(f"**⏳ 타임라인 위치 선택 ({current_time_str} / {total_time_str})**")
 
         with col_vchat:
             st.write("🎨 **핀 색상 선택**")
@@ -382,9 +425,16 @@ with tab_vid:
                     active_color=FeedbackConfig.COLOR_MAP[v_sel_color]
                 )
                 
-                st.caption(f"🎯 **현재 타임라인 ({v_min:02d}:{v_sec:02d})** - 아래 화면을 클릭하여 위치를 지정하세요.")
+                if is_range:
+                    start_time_str = f"{start_seconds // 60:02d}:{start_seconds % 60:02d}"
+                    end_time_str = f"{end_seconds // 60:02d}:{end_seconds % 60:02d}"
+                    st.caption(f"🎯 **현재 타임라인 구간 ({start_time_str} ~ {end_time_str})** - 아래 화면을 클릭하여 위치를 지정하세요.")
+                else:
+                    st.caption(f"🎯 **현재 타임라인 ({v_min:02d}:{v_sec:02d})** - 아래 화면을 클릭하여 위치를 지정하세요.")
+                
                 from streamlit_image_coordinates import streamlit_image_coordinates
-                streamlit_image_coordinates(v_image_with_pins, use_column_width="always", key=v_coords_key)
+                # Set explicit width to prevent browser scaling offset!
+                streamlit_image_coordinates(v_image_with_pins, width=v_image.width, key=v_coords_key)
             else:
                 st.warning("⚠️ 프레임을 읽을 수 없습니다.")
 
@@ -394,7 +444,16 @@ with tab_vid:
             
             if v_feedback:
                 if v_active:
-                    SessionStateManager.add_video_feedback(v_id, FeedbackConfig.COLOR_MAP[v_sel_color], v_sel_color, target_seconds, v_active["x"], v_active["y"], v_feedback)
+                    SessionStateManager.add_video_feedback(
+                        v_id, 
+                        FeedbackConfig.COLOR_MAP[v_sel_color], 
+                        v_sel_color, 
+                        start_seconds, 
+                        v_active["x"], 
+                        v_active["y"], 
+                        v_feedback,
+                        end_time=end_seconds
+                    )
                     state["video_data"] = st.session_state.video_data
                     ProjectManager.save_state(current_pid, state)
                     # Clear coordinates state
