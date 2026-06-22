@@ -146,8 +146,7 @@ class VideoFeedbackUtils:
     @st.cache_data(show_spinner=False)
     def extract_frame_from_path(video_path: str, target_seconds: int):
         """
-        로컬 디스크에 저장된 비디오 경로에서 바로 프레임을 추출합니다. (임시 파일 복사 없이 고속 작동)
-        st.cache_data를 적용하여 같은 초수를 볼 때 딜레이 없이 즉각적으로 표시됩니다.
+        로컬 디스크에 저장된 비디오 경로에서 바로 프레임을 추출하고 600px로 빠르게 리사이징하여 반환합니다.
         """
         img = None
         try:
@@ -163,6 +162,10 @@ class VideoFeedbackUtils:
             if ret:
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 img = Image.fromarray(frame)
+                # 고속 Bilinear 필터로 600px 리사이징 처리하여 캐싱 크기를 줄이고 렌더링 딜레이 최적화
+                if img.width > 600:
+                    ratio = 600 / float(img.width)
+                    img = img.resize((600, int(img.height * ratio)), Image.Resampling.BILINEAR)
         finally:
             if 'cap' in locals():
                 cap.release()

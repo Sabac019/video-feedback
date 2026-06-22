@@ -8,7 +8,7 @@ from feedbackutill import FeedbackConfig, ImageFeedbackUtils, VideoFeedbackUtils
 def resize_image(img: Image.Image, max_width: int) -> Image.Image:
     if img.width > max_width:
         ratio = max_width / float(img.width)
-        return img.resize((max_width, int(img.height * ratio)), Image.LANCZOS)
+        return img.resize((max_width, int(img.height * ratio)), Image.Resampling.BILINEAR)
     return img
 
 st.set_page_config(page_title="멀티미디어 디자인 리뷰 룸 (협업/공유 버전)", layout="wide")
@@ -111,7 +111,25 @@ with tab_img:
         SessionStateManager.init_image_state(f_id)
         
         st.write("---")
-        st.markdown(f"#### 🖼️ {img_info['name']}")
+        # 업로드 일시 표시 (상단 아주 작게 회색 글씨, 24시간 형식)
+        if "uploaded_at" in img_info:
+            st.markdown(f"<span style='color: gray; font-size: 0.75rem;'>🕒 업로드 일시: {img_info['uploaded_at']}</span>", unsafe_allow_html=True)
+            
+        col_title, col_delete = st.columns([8, 2])
+        with col_title:
+            st.markdown(f"#### 🖼️ {img_info['name']}")
+        with col_delete:
+            if st.button("🗑️ 이미지 삭제", key=f"del_img_file_{f_id}", use_container_width=True):
+                if os.path.exists(img_info['path']):
+                    try:
+                        os.remove(img_info['path'])
+                    except Exception:
+                        pass
+                state["files"]["images"] = [x for x in state["files"]["images"] if x['name'] != img_info['name']]
+                if f_id in state.get("canvas_data", {}):
+                    del state["canvas_data"][f_id]
+                ProjectManager.save_state(current_pid, state)
+                st.rerun()
         
         col_img, col_chat = st.columns([7, 3])
         
@@ -171,13 +189,20 @@ with tab_img:
 
     # 2. 이미지 추가 업로드
     st.write("---")
-    new_img_files = st.file_uploader("추가할 이미지 업로드", type=["png", "jpg", "jpeg"], accept_multiple_files=True, key="img_uploader")
+    if "img_uploader_key" not in st.session_state:
+        st.session_state.img_uploader_key = 0
+        
+    new_img_files = st.file_uploader("추가할 이미지 업로드", type=["png", "jpg", "jpeg"], accept_multiple_files=True, key=f"img_uploader_{st.session_state.img_uploader_key}")
     if new_img_files:
         if st.button("새 이미지 저장 및 프로젝트에 추가", use_container_width=True):
+            from datetime import datetime
+            uploaded_time = datetime.now().strftime("%Y-%m-%d %H:%M")
             for file in new_img_files:
                 file_info = ProjectManager.save_uploaded_file(current_pid, file, "images")
+                file_info["uploaded_at"] = uploaded_time
                 state["files"]["images"].append(file_info)
             ProjectManager.save_state(current_pid, state)
+            st.session_state.img_uploader_key += 1
             st.rerun()
 
 
@@ -193,23 +218,49 @@ with tab_vid:
         SessionStateManager.init_video_state(v_id)
             
         st.write("---")
-        st.markdown(f"#### 🎥 {vid_info['name']}")
+        # 업로드 일시 표시 (상단 아주 작게 회색 글씨, 24시간 형식)
+        if "uploaded_at" in vid_info:
+            st.markdown(f"<span style='color: gray; font-size: 0.75rem;'>🕒 업로드 일시: {vid_info['uploaded_at']}</span>", unsafe_allow_html=True)
+            
+        col_title, col_delete = st.columns([8, 2])
+        with col_title:
+            st.markdown(f"#### 🎥 {vid_info['name']}")
+        with col_delete:
+            if st.button("🗑️ 영상 삭제", key=f"del_vid_file_{v_id}", use_container_width=True):
+                if os.path.exists(vid_info['path']):
+                    try:
+                        os.remove(vid_info['path'])
+                    except Exception:
+                        pass
+                state["files"]["videos"] = [x for x in state["files"]["videos"] if x['name'] != vid_info['name']]
+                if v_id in state.get("video_data", {}):
+                    del state["video_data"][v_id]
+                ProjectManager.save_state(current_pid, state)
+                st.rerun()
         
         col_vid, col_vchat = st.columns([5, 5])
         
         with col_vid:
+            # 비디오 파일의 실제 재생 길이(초)를 구합니다.
+            duration = VideoFeedbackUtils.get_video_duration(vid_info['path'])
             # 디스크 경로를 직접 넘겨 스트리밍 렌더링 (사운드 및 로딩 성능 최적화)
-            v_start_time = st.session_state.get(f"v_start_{v_id}", 0)
+            v_start_time = min(st.session_state.get(f"v_start_{v_id}", 0), duration)
             st.video(vid_info['path'], start_time=v_start_time)
             
             st.markdown("#### 🛠️ 타임라인 핀 지정 도구")
-            duration = VideoFeedbackUtils.get_video_duration(vid_info['path'])
+            current_val = min(st.session_state.get(f"v_slider_{v_id}", v_start_time), duration)
+            
+            current_time_str = f"{current_val // 60:02d}:{current_val % 60:02d}"
+            total_time_str = f"{duration // 60:02d}:{duration % 60:02d}"
+            
+            st.markdown(f"**⏳ 타임라인 위치 선택 ({current_time_str} / {total_time_str})**")
             target_seconds = st.slider(
-                "⏳ 타임라인 위치 선택 (초)",
+                "타임라인 슬라이더",
                 min_value=0,
                 max_value=duration,
                 value=v_start_time,
-                key=f"v_slider_{v_id}"
+                key=f"v_slider_{v_id}",
+                label_visibility="collapsed"
             )
             v_min = target_seconds // 60
             v_sec = target_seconds % 60
@@ -229,7 +280,7 @@ with tab_vid:
             v_active = st.session_state.v_current_click.get(v_id)
             
             if v_image:
-                v_image = resize_image(v_image, max_width=600)
+                # 리사이징이 extract_frame_from_path 내부에서 이루어지므로 bilinear 호출 최적화 완료
                 v_image_with_pins = VideoFeedbackUtils.draw_pins_on_frame(
                     base_img=v_image,
                     comments=st.session_state.video_data.get(v_id, []),
@@ -282,13 +333,20 @@ with tab_vid:
 
     # 2. 영상 추가 업로드
     st.write("---")
-    new_vid_files = st.file_uploader("추가할 영상 업로드", type=["mp4", "mov", "avi"], accept_multiple_files=True, key="vid_uploader")
+    if "vid_uploader_key" not in st.session_state:
+        st.session_state.vid_uploader_key = 0
+        
+    new_vid_files = st.file_uploader("추가할 영상 업로드", type=["mp4", "mov", "avi"], accept_multiple_files=True, key=f"vid_uploader_{st.session_state.vid_uploader_key}")
     if new_vid_files:
         if st.button("새 영상 저장 및 프로젝트에 추가", use_container_width=True):
+            from datetime import datetime
+            uploaded_time = datetime.now().strftime("%Y-%m-%d %H:%M")
             for file in new_vid_files:
                 file_info = ProjectManager.save_uploaded_file(current_pid, file, "videos")
+                file_info["uploaded_at"] = uploaded_time
                 state["files"]["videos"].append(file_info)
             ProjectManager.save_state(current_pid, state)
+            st.session_state.vid_uploader_key += 1
             st.rerun()
 
 
