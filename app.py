@@ -344,6 +344,7 @@ with tab_vid:
                 max_value=seconds_to_time(duration),
                 value=seconds_to_time(v_start_time),
                 key=slider_key,
+                step=datetime.timedelta(seconds=1),
                 format=fmt,
                 label_visibility="collapsed"
             )
