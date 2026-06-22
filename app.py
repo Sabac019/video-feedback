@@ -190,7 +190,8 @@ with tab_img:
             sel_color = st.radio("핀 색상", list(FeedbackConfig.COLOR_MAP.keys()), key=f"r_{f_id}", horizontal=True)
             
             # Sync coordinate from widget state before rendering to optimize latency (no double rerun)
-            coords_key = f"coords_{f_id}"
+            coords_ver = st.session_state.get(f"coords_ver_{f_id}", 0)
+            coords_key = f"coords_{f_id}_{coords_ver}"
             coords = st.session_state.get(coords_key)
             if coords and coords != st.session_state.current_click.get(f_id):
                 st.session_state.current_click[f_id] = coords
@@ -221,9 +222,8 @@ with tab_img:
                     SessionStateManager.add_image_feedback(f_id, FeedbackConfig.COLOR_MAP[sel_color], sel_color, active_click["x"], active_click["y"], f_back)
                     state["canvas_data"] = st.session_state.canvas_data
                     ProjectManager.save_state(current_pid, state)
-                    # Clear coordinates from session state
-                    if coords_key in st.session_state:
-                        st.session_state[coords_key] = None
+                    # Increment coordinates version to reset the widget cleanly
+                    st.session_state[f"coords_ver_{f_id}"] = coords_ver + 1
                     st.rerun()
                 else:
                     st.warning("이미지 위를 먼저 클릭하세요!")
@@ -318,7 +318,8 @@ with tab_vid:
             duration = VideoFeedbackUtils.get_video_duration(vid_info['path'])
             # 디스크 경로를 직접 넘겨 스트리밍 렌더링 (사운드 및 로딩 성능 최적화)
             v_start_time = min(st.session_state.get(f"v_start_{v_id}", 0), duration)
-            st.video(vid_info['path'], start_time=v_start_time)
+            # key를 동적으로 설정하여 재생시점 이동 버튼 클릭 시 비디오를 완전히 리로드/이동시킵니다.
+            st.video(vid_info['path'], start_time=v_start_time, key=f"video_player_{v_id}_{v_start_time}")
             
             st.markdown("#### 🛠️ 타임라인 핀 지정 도구")
             
@@ -424,7 +425,8 @@ with tab_vid:
             )
             
             # Sync coordinate from widget state before rendering to optimize latency (no double rerun)
-            v_coords_key = f"v_coords_{v_id}"
+            v_coords_ver = st.session_state.get(f"v_coords_ver_{v_id}", 0)
+            v_coords_key = f"v_coords_{v_id}_{v_coords_ver}"
             v_coords = st.session_state.get(v_coords_key)
             if v_coords and v_coords != st.session_state.v_current_click.get(v_id):
                 st.session_state.v_current_click[v_id] = v_coords
@@ -517,9 +519,8 @@ with tab_vid:
                     )
                     state["video_data"] = st.session_state.video_data
                     ProjectManager.save_state(current_pid, state)
-                    # Clear coordinates state
-                    if v_coords_key in st.session_state:
-                        st.session_state[v_coords_key] = None
+                    # Increment coordinates version to reset the widget cleanly
+                    st.session_state[f"v_coords_ver_{v_id}"] = v_coords_ver + 1
                     st.rerun()
                 else:
                     st.warning("⚠️ 위의 스냅샷 화면에서 위치를 먼저 클릭해 주세요!")
