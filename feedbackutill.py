@@ -62,8 +62,9 @@ class ImageFeedbackUtils:
         
         col_content, col_ed, col_del = st.columns([7.5, 1.25, 1.25])
         with col_content:
+            coord_str = f" ({x},{y})" if x >= 0 and y >= 0 else ""
             st.markdown(f'<div style="background:#FFFDE7; border-left:4px solid {color}; padding:8px; border-radius:4px; margin-bottom:4px;">'
-                        f'<span style="font-size:0.8rem; color:#555;">📌 {color_name} 핀 ({x},{y})</span><br>'
+                        f'<span style="font-size:0.8rem; color:#555;">📌 {color_name} 핀{coord_str}</span><br>'
                         f'<span style="font-size:1.0rem; color:#000;">{text}</span>'
                         f'</div>', unsafe_allow_html=True)
         with col_ed:
@@ -184,13 +185,14 @@ class VideoFeedbackUtils:
         for comm in comments:
             if comm.get("time") == target_seconds:
                 x, y = comm.get("x", 0), comm.get("y", 0)
-                color = comm.get("color", "#FF4B4B")
-                draw.ellipse([x-14, y-14, x+14, y+14], fill=color, outline="white", width=2)
-                mins = target_seconds // 60
-                secs = target_seconds % 60
-                # 흰색 텍스트에 약간의 그림자 효과를 위해 검은색 텍스트를 살짝 어긋나게 그리기
-                draw.text((x + 19, y - 5), f"{mins:02d}:{secs:02d}", fill="black")
-                draw.text((x + 18, y - 6), f"{mins:02d}:{secs:02d}", fill="white")
+                if x >= 0 and y >= 0:
+                    color = comm.get("color", "#FF4B4B")
+                    draw.ellipse([x-14, y-14, x+14, y+14], fill=color, outline="white", width=2)
+                    mins = target_seconds // 60
+                    secs = target_seconds % 60
+                    # 흰색 텍스트에 약간의 그림자 효과를 위해 검은색 텍스트를 살짝 어긋나게 그리기
+                    draw.text((x + 19, y - 5), f"{mins:02d}:{secs:02d}", fill="black")
+                    draw.text((x + 18, y - 6), f"{mins:02d}:{secs:02d}", fill="white")
                 
         # 활성화된 클릭 핀 그리기
         if active_click:
@@ -232,7 +234,8 @@ class VideoFeedbackUtils:
         
         col_content, col_ed, col_del = st.columns([7.5, 1.25, 1.25])
         with col_content:
-            st.markdown(f'<div style="background-color: #F0F4FF; border-left: 4px solid {color}; padding: 8px; border-radius: 4px; margin-bottom: 4px;"><span style="font-size: 0.8rem; color: #555;">⏱️ <b>{timestamp}</b> ({x}, {y})</span><br><span style="font-size: 1.0rem; color: #000;">{text}</span></div>', unsafe_allow_html=True)
+            coord_str = f" ({x}, {y})" if x >= 0 and y >= 0 else ""
+            st.markdown(f'<div style="background-color: #F0F4FF; border-left: 4px solid {color}; padding: 8px; border-radius: 4px; margin-bottom: 4px;"><span style="font-size: 0.8rem; color: #555;">⏱️ <b>{timestamp}</b>{coord_str}</span><br><span style="font-size: 1.0rem; color: #000;">{text}</span></div>', unsafe_allow_html=True)
             if st.button(f"▶ {timestamp} 재생 시점으로 이동", key=f"v_jump_{c_id}", use_container_width=True):
                 st.session_state[f"v_start_{file_id}"] = time
                 

@@ -217,16 +217,15 @@ with tab_img:
             f_back = st.chat_input("의견 입력 후 엔터", key=f"chat_{f_id}")
             
             if f_back:
-                if active_click:
-                    # 세션에 코멘트 추가 후 즉시 JSON 파일로 덮어쓰기 (실시간 공유 목적)
-                    SessionStateManager.add_image_feedback(f_id, FeedbackConfig.COLOR_MAP[sel_color], sel_color, active_click["x"], active_click["y"], f_back)
-                    state["canvas_data"] = st.session_state.canvas_data
-                    ProjectManager.save_state(current_pid, state)
-                    # Increment coordinates version to reset the widget cleanly
-                    st.session_state[f"coords_ver_{f_id}"] = coords_ver + 1
-                    st.rerun()
-                else:
-                    st.warning("이미지 위를 먼저 클릭하세요!")
+                act_x = active_click["x"] if active_click else -100
+                act_y = active_click["y"] if active_click else -100
+                # 세션에 코멘트 추가 후 즉시 JSON 파일로 덮어쓰기 (실시간 공유 목적)
+                SessionStateManager.add_image_feedback(f_id, FeedbackConfig.COLOR_MAP[sel_color], sel_color, act_x, act_y, f_back)
+                state["canvas_data"] = st.session_state.canvas_data
+                ProjectManager.save_state(current_pid, state)
+                # Increment coordinates version to reset the widget cleanly
+                st.session_state[f"coords_ver_{f_id}"] = coords_ver + 1
+                st.rerun()
             
             for comm in st.session_state.canvas_data.get(f_id, []):
                 ImageFeedbackUtils.render_feedback_card(f_id, comm, lambda: ProjectManager.save_state(current_pid, state))
@@ -508,24 +507,24 @@ with tab_vid:
             v_feedback = st.chat_input("타임라인 피드백을 적고 엔터", key=f"vchat_{v_id}")
             
             if v_feedback:
-                if v_active:
-                    SessionStateManager.add_video_feedback(
-                        v_id, 
-                        FeedbackConfig.COLOR_MAP[v_sel_color], 
-                        v_sel_color, 
-                        start_seconds, 
-                        v_active["x"], 
-                        v_active["y"], 
-                        v_feedback,
-                        end_time=end_seconds
-                    )
-                    state["video_data"] = st.session_state.video_data
-                    ProjectManager.save_state(current_pid, state)
-                    # Increment coordinates version to reset the widget cleanly
-                    st.session_state[f"v_coords_ver_{v_id}"] = v_coords_ver + 1
-                    st.rerun()
-                else:
-                    st.warning("⚠️ 위의 스냅샷 화면에서 위치를 먼저 클릭해 주세요!")
+                act_x = v_active["x"] if v_active else -100
+                act_y = v_active["y"] if v_active else -100
+                
+                SessionStateManager.add_video_feedback(
+                    v_id, 
+                    FeedbackConfig.COLOR_MAP[v_sel_color], 
+                    v_sel_color, 
+                    start_seconds, 
+                    act_x, 
+                    act_y, 
+                    v_feedback,
+                    end_time=end_seconds
+                )
+                state["video_data"] = st.session_state.video_data
+                ProjectManager.save_state(current_pid, state)
+                # Increment coordinates version to reset the widget cleanly
+                st.session_state[f"v_coords_ver_{v_id}"] = v_coords_ver + 1
+                st.rerun()
             
             v_comments = st.session_state.video_data.get(v_id, [])
             if not v_comments:
