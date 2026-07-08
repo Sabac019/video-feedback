@@ -396,9 +396,16 @@ def export_image_project_to_html(project_name: str, image_name: str, image_path:
     이미지 위에 그려진 핀이 포함된 PIL 이미지를 Base64 인코딩하여 HTML에 박아 넣습니다.
     로컬 브라우저에서 무설치/무서버 상태로 바로 코멘트를 보며 작업할 수 있게 합니다.
     """
+    import requests
+    from io import BytesIO
     image_content_html = ""
     try:
-        base_img = Image.open(image_path).convert("RGB")
+        if image_path.startswith("http"):
+            response = requests.get(image_path)
+            base_img = Image.open(BytesIO(response.content)).convert("RGB")
+        else:
+            base_img = Image.open(image_path).convert("RGB")
+            
         if base_img.width > 700:
             ratio = 700 / float(base_img.width)
             base_img = base_img.resize((700, int(base_img.height * ratio)), Image.Resampling.LANCZOS)

@@ -291,6 +291,14 @@ class VideoFeedbackUtils:
                 st.rerun()
         
 
+from supabase import create_client, Client
+
+@st.cache_resource
+def init_supabase() -> Client:
+    url = st.secrets["SUPABASE_URL"]
+    key = st.secrets["SUPABASE_KEY"]
+    return create_client(url, key)
+
 class SessionStateManager:
     """Streamlit 세션 상태 초기화 및 관리를 도와주는 유틸리티"""
     
@@ -365,69 +373,50 @@ class SessionStateManager:
         st.session_state.video_data[file_id] = [item for item in st.session_state.video_data.get(file_id, []) if item.get("id") != c_id]
 
 class ProjectManager:
-    """프로젝트 파일 및 상태 저장을 관리하는 유틸리티"""
-    BASE_DIR = os.path.join(os.path.dirname(__file__), "projects")
-
-    @classmethod
-    def _ensure_dir(cls):
-        if not os.path.exists(cls.BASE_DIR):
-            os.makedirs(cls.BASE_DIR)
+    """프로젝트 파일 및 상태 저장을 관리하는 유틸리티 (Supabase 연동)"""
 
     @classmethod
     def list_projects(cls) -> list:
-        cls._ensure_dir()
-        projects = []
-        for d in os.listdir(cls.BASE_DIR):
-            proj_dir = os.path.join(cls.BASE_DIR, d)
-            state_file = os.path.join(proj_dir, "state.json")
-            if os.path.isdir(proj_dir) and os.path.exists(state_file):
-                with open(state_file, 'r', encoding='utf-8') as f:
-                    try:
-                        state = json.load(f)
-                        projects.append({
-                            "id": d,
-                            "name": state.get("name", d),
-                            "created_at": state.get("created_at", "")
-                        })
-                    except:
-                        pass
-        return sorted(projects, key=lambda x: x["created_at"], reverse=True)
+        try:
+            sb = init_supabase()
+            res = sb.table("projects").select("id, name, created_at").order("created_at", desc=True).execute()
+            return res.data
+        except Exception:
+            return []
 
     @classmethod
     def create_project(cls, name: str) -> str:
-        cls._ensure_dir()
+        sb = init_supabase()
         pid = f"proj_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
-        proj_dir = os.path.join(cls.BASE_DIR, pid)
-        os.makedirs(proj_dir)
-        os.makedirs(os.path.join(proj_dir, "images"))
-        os.makedirs(os.path.join(proj_dir, "videos"))
-        
-        initial_state = {
+        created_at = datetime.now().isoformat()
+        state = {
             "name": name,
-            "created_at": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            "created_at": created_at,
             "canvas_data": {},
             "video_data": {},
-            "files": {
-                "images": [],
-                "videos": []
-            }
+            "files": {"images": [], "videos": []}
         }
-        cls.save_state(pid, initial_state)
+        sb.table("projects").insert({"id": pid, "name": name, "created_at": created_at, "state": state}).execute()
         return pid
 
     @classmethod
     def load_state(cls, pid: str) -> dict:
-        state_file = os.path.join(cls.BASE_DIR, pid, "state.json")
-        if os.path.exists(state_file):
-            with open(state_file, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        return None
+        try:
+            sb = init_supabase()
+            res = sb.table("projects").select("state").eq("id", pid).execute()
+            if res.data and len(res.data) > 0:
+                return res.data[0]["state"]
+        except Exception:
+            pass
+        return {}
 
     @classmethod
     def save_state(cls, pid: str, state: dict):
-        state_file = os.path.join(cls.BASE_DIR, pid, "state.json")
-        with open(state_file, 'w', encoding='utf-8') as f:
-            json.dump(state, f, ensure_ascii=False, indent=2)
+        try:
+            sb = init_supabase()
+            sb.table("projects").update({"state": state, "name": state.get("name")}).eq("id", pid).execute()
+        except Exception:
+            pass
 
     @classmethod
     def rename_project(cls, pid: str, new_name: str):
@@ -438,30 +427,40 @@ class ProjectManager:
 
     @classmethod
     def delete_project(cls, pid: str):
-        proj_dir = os.path.join(cls.BASE_DIR, pid)
-        if os.path.exists(proj_dir):
-            shutil.rmtree(proj_dir)
+        try:
+            sb = init_supabase()
+            sb.table("projects").delete().eq("id", pid).execute()
+        except Exception:
+            pass
 
     @classmethod
-    def save_uploaded_file(cls, pid: str, file_obj, file_type: str) -> dict:
-        """file_type: 'images' or 'videos'. Returns dict with path info."""
-        folder = os.path.join(cls.BASE_DIR, pid, file_type)
-        if not os.path.exists(folder):
-            os.makedirs(folder)
+    def save_uploaded_file(cls, pid: str, uploaded_file, media_type: str) -> dict:
+        sb = init_supabase()
+        ext = os.path.splitext(uploaded_file.name)[1].lower()
+        if not ext:
+            ext = ".png" if media_type == "images" else ".mp4"
             
-        file_path = os.path.join(folder, file_obj.name)
-        # Avoid overwriting with same name by adding suffix if exists
-        base, ext = os.path.splitext(file_obj.name)
-        counter = 1
-        while os.path.exists(file_path):
-            file_path = os.path.join(folder, f"{base}_{counter}{ext}")
-            counter += 1
-            
-        file_obj.seek(0)
-        with open(file_path, "wb") as f:
-            f.write(file_obj.read())
-            
+        filename = f"{uuid.uuid4().hex}{ext}"
+        storage_path = f"{pid}/{media_type}/{filename}"
+        
+        uploaded_file.seek(0)
+        file_bytes = uploaded_file.read()
+        
+        mime_type = "image/png"
+        if ext in [".jpg", ".jpeg"]: mime_type = "image/jpeg"
+        if ext == ".mp4": mime_type = "video/mp4"
+        if ext == ".mov": mime_type = "video/quicktime"
+        
+        sb.storage.from_("media").upload(
+            path=storage_path,
+            file=file_bytes,
+            file_options={"content-type": mime_type}
+        )
+        
+        public_url = sb.storage.from_("media").get_public_url(storage_path)
+        
         return {
-            "name": os.path.basename(file_path),
-            "path": file_path
+            "name": uploaded_file.name,
+            "path": public_url,
+            "filename": filename
         }

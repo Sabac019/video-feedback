@@ -3,3 +3,4 @@ streamlit-autorefresh
 streamlit-image-coordinates
 opencv-python-headless
 pillow
+supabase

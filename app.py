@@ -12,9 +12,16 @@ def resize_image(img: Image.Image, max_width: int) -> Image.Image:
         return img.resize((max_width, int(img.height * ratio)), Image.Resampling.BILINEAR)
     return img
 
+import requests
+from io import BytesIO
+
 @st.cache_data(show_spinner=False)
 def load_and_resize_image(img_path: str, max_width: int = 700) -> Image.Image:
-    base_img = Image.open(img_path).convert("RGB")
+    if img_path.startswith("http"):
+        response = requests.get(img_path)
+        base_img = Image.open(BytesIO(response.content)).convert("RGB")
+    else:
+        base_img = Image.open(img_path).convert("RGB")
     return resize_image(base_img, max_width)
 
 def seconds_to_time(secs: int) -> datetime.time:
